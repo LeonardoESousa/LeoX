@@ -90,7 +90,7 @@ def pega_geom(freqlog):
 	return G, atomos
 
 def pega_massas(freqlog,G):
-	F, M = pega_freq(freqlog)
+	_ , M = pega_freq(freqlog)
 	num_atom = np.shape(G)[0]
 	massas = []
 	with open(freqlog, 'r') as f:
