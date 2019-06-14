@@ -48,19 +48,23 @@ def pega_freq(freqlog):
 def pega_geom(freqlog):
 	atomos = []
 	if ".log" in freqlog:
+		status = 0
 		busca = "Input orientation:"
 		with open(freqlog, 'r') as f:
 			for line in f:
 				if "Standard orientation" in line:
 					busca = "Standard orientation:"
-					break 
+				if "Optimized Parameters" in line:
+					status = 1
 		print("\nEstou usando o", busca,"\n")			
 		G = np.zeros((1,3))
 		n = -1
 		with open(freqlog, 'r') as f:
 			for line in f:
-				if n < 0:
-					if busca in line: #"                         Input orientation:                          " in line or "Standard orientation:" in line:
+				if status == 1 and "Optimized Parameters" in line:
+					status = 0
+				if n < 0 and status == 0:
+					if busca in line:
 						n = 0
 					else:
 						pass
@@ -492,7 +496,7 @@ print("#        #       #    #  #   # ")
 print("#######  ######   ####  #     #")
 print("----SPECTRA FOR THE PEOPLE!----\n")
 print("Quer fazer o que??\n")
-print("Tenho só o log de frequência (Não use log de opt freq!). Quero gerar geometrias - digite 1")
+print("Tenho só o log de frequência. Quero gerar geometrias - digite 1")
 print("Geometrias prontas, quero botar para rodar com o ts - digite 2")
 print("Tudo pronto, quero gerar o espectro - digite 3")
 print("Quero saber a quantas anda essa joça - digite 4")
