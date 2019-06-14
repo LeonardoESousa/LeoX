@@ -448,7 +448,10 @@ def batch(gauss):
 					prontos.append(file.split("-")[1])
 	for file in sorted(files, key=lambda file: float(file.split("-")[1])):
 		if file.split("-")[1] not in prontos:
-			call(['ts', gauss, file])
+			try:
+				call(['ts', gauss, file])
+			except:
+				call(['tsp', gauss, file])
 
 def andamento():
 	coms = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
