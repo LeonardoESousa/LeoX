@@ -102,13 +102,13 @@ def pega_massas(freqlog,G):
 				massas.append(float(line[-1]))
 	massas = np.expand_dims(np.asarray(massas),axis=1)
 	atomos = np.zeros((3*num_atom,1))
-	for i in range(0,len(M)):
+	for _ in range(0,len(M)):
 		atomos = np.hstack((atomos,massas))
 	massas = atomos[:,1:]
 	return massas*amu
 
 def pega_modosHP(G, freqlog):
-	massas = pega_massas(freqlog,G)
+	#massas = pega_massas(freqlog,G)
 	F, M = pega_freq(freqlog)
 	n = -1
 	num_atom = np.shape(G)[0]
@@ -133,7 +133,7 @@ def pega_modosHP(G, freqlog):
 	NC = NC[:,1:]
 	MM = np.zeros((1,len(F)))
 	M = np.expand_dims(M,axis=0)
-	for i in range(0,3*num_atom):
+	for _ in range(0,3*num_atom):
 		MM = np.vstack((MM,M))
 	M = MM[1:,:]
 	#NC = NC*np.sqrt(massas/M)
@@ -141,7 +141,7 @@ def pega_modosHP(G, freqlog):
 	return NC
 
 def pega_modosLP(G,freqlog):
-	massas = pega_massas(freqlog,G)
+	#massas = pega_massas(freqlog,G)
 	F, M = pega_freq(freqlog)
 	C = []
 	n = -1
@@ -356,7 +356,7 @@ def gather_data(G, freqlog, opc):
 		for file in files:
 			num = file.split("-")[1]
 			if float(opc) == 0:
-				G1, atomos = pega_geom(file[:-4]+".com")
+				G1, _ = pega_geom(file[:-4]+".com")
 				vibronic, broadening = vibronic_shift(G1, G, NNC, F, M, massas)
 			else:
 				vibronic, broadening = 0, opc
