@@ -108,7 +108,7 @@ def pega_massas(freqlog,G):
 	return massas*amu
 
 def pega_modosHP(G, freqlog):
-	#massas = pega_massas(freqlog,G) #testando conflito Leo
+	#massas = pega_massas(freqlog,G)
 	F, M = pega_freq(freqlog)
 	n = -1
 	num_atom = np.shape(G)[0]
