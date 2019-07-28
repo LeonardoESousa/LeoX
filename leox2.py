@@ -506,7 +506,6 @@ print("Quero saber a quantas anda essa joça - digite 4")
 op = input()
 if op == '1':
 	freqlog = busca_log("É esse o log de frequência?")
-	g, at = pega_geom(freqlog)
 	base = busca_input(freqlog)
 	print("\n"+base)
 	resp = input("Funcional e base estão corretos? Se sim, Enter. Se não, escreva (funcional/base).\n")
