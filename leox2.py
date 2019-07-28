@@ -49,12 +49,15 @@ def pega_geom(freqlog):
 	atomos = []
 	if ".log" in freqlog:
 		status = 0
+		status2 = 0
 		busca = "Input orientation:"
 		with open(freqlog, 'r') as f:
 			for line in f:
 				if "Standard orientation" in line:
 					busca = "Standard orientation:"
-				if "Optimized Parameters" in line:
+				if 'geom=allcheckpoint' in line:
+					status2 = 1	
+				if "Optimized Parameters" in line and status2 == 0:
 					status = 1
 		print("\nEstou usando o", busca,"\n")			
 		G = np.zeros((1,3))
@@ -503,6 +506,7 @@ print("Quero saber a quantas anda essa joça - digite 4")
 op = input()
 if op == '1':
 	freqlog = busca_log("É esse o log de frequência?")
+	g, at = pega_geom(freqlog)
 	base = busca_input(freqlog)
 	print("\n"+base)
 	resp = input("Funcional e base estão corretos? Se sim, Enter. Se não, escreva (funcional/base).\n")
