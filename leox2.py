@@ -516,7 +516,7 @@ if op == '1':
             bottom = "NonEq=Write\n\n--Link1--\n%oldchk=stepUUUUU.chk\n%chk=step2UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF("+solv+")\n\nTITLE\n\n0 1\n\nNONEQ=Read\n"+epss
         else:
             print("Preparando inputs para espectro de absorção!\n")
-            header = "%nproc="+nproc+"\n%mem="+mem+"GB\n# "+base+" SCRF=(CorrectedLR,"+solv+") TD=(NSTATES=1,NonEqSolv) IOP(10/74=10)\n\nTITLE\n\n0 1\n"
+            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") TD=(NSTATES=1,NonEqSolv) IOP(10/74=10)\n\nTITLE\n\n0 1\n"
             bottom = epss
     elif pcm == 'n':
         header = "%nproc="+nproc+"\n%Mem="+mem+"\n# td=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
