@@ -329,8 +329,10 @@ def gather_data(G, freqlog, opc):
                         line = line.split()
                         corrected = line[4]
                     elif "Total energy after correction" in line:
+                        line = line.split()
                         total_corrected = 27.2114*float(line[5])
                     elif "SCF Done:" in line:
+                        line = line.split()
                         scfs.append(27.2114*float(line[4]))
                 if corrected != -1 and len(scfs) == 1: #abspcm
                     f.write("Excited State 1\t"+corrected+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
