@@ -509,6 +509,7 @@ if op == '1':
                 sys.exit()
             epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
         else:
+            solv = "SOLVENT="+solv
             epss = "\n"
         if temtd:
             print("Preparando inputs para espectro de emissão!\n")
