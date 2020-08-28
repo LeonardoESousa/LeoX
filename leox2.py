@@ -351,11 +351,11 @@ def gauss(x,v,s):
 
 
 
-def spectra(tipo, num_ex):
+def spectra(tipo, num_ex, nr):
     if tipo == "abs":
-        constante = (np.pi*(e**2)*hbar)/(2*mass*c*epsilon0)*10**(20)
+        constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
     elif tipo == 'emi':
-        constante = ((e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
     V, O, D, S = [], [], [], []
     N = 0
     with open("Samples.lx", 'r') as f:
@@ -550,10 +550,16 @@ elif op == '3':
     except:
         print("Fez alguma cagada!")
         sys.exit()  
+    nr = input("Qual o índice de refração?\n")
+    try:
+        nr = float(nr)
+    except:
+        print("O índice deve ser um número.")
+        sys.exit()
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
     gather_data(G,freqlog, opc)
-    spectra(tipo, num_ex)
+    spectra(tipo, num_ex, nr)
 elif op == '2':
     op = input("O ts está pronto já? s ou n?\n")
     if op != 's':
