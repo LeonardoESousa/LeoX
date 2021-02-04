@@ -307,6 +307,10 @@ def rotaciona(G1,G,massas):
             
 
 def gather_data(G, freqlog, opc, delta_o):
+    if delta_o == -1000:
+        fator = 0
+    else:
+        fator = 1
     F, M = pega_freq(freqlog)
     NNC = pega_modos(G,freqlog)
     massas = pega_massas(freqlog,G)
@@ -335,15 +339,15 @@ def gather_data(G, freqlog, opc, delta_o):
                         line = line.split()
                         scfs.append(27.2114*float(line[4]))
                 if corrected != -1 and len(scfs) == 1: #abspcm
-                    vibronic = 0.5*(abs(float(delta_o)) - abs(float(corrected)))
+                    vibronic = fator*0.5*(abs(float(delta_o)) - abs(float(corrected)))
                     f.write("Excited State 1:\t"+corrected+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 elif corrected != -1 and len(scfs) == 2: #emipcm     
                     energy = str(np.round(total_corrected - scfs[-1],3))
-                    vibronic = 0.5*(abs(float(delta_o)) - abs(float(energy)))
+                    vibronic = fator*0.5*(abs(float(delta_o)) - abs(float(energy)))
                     f.write("Excited State 1:\t"+energy+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 else:
                     for i in range(len(energies)):
-                        vibronic = 0.5*(abs(float(delta_o)) - abs(float(energies[i])))
+                        vibronic = fator*0.5*(abs(float(delta_o)) - abs(float(energies[i])))
                         f.write("Excited State "+numeros[i]+"\t"+energies[i]+"\t"+fs[i]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 f.write("\n")   
 
@@ -540,9 +544,11 @@ elif op == '3':
     except: 
         print("Tem que ser um número, diabo!")
         sys.exit()  
-    delta_o = input("Qual o delta otimizado (em eV)? (Diferença entre as energias das geometrias otimizadas no estado inicial e final)\n")
+    delta_o = input("Qual o delta otimizado (em eV)? (Diferença entre as energias das geometrias otimizadas no estado inicial e final). Para ignorar esse efeito, digite -1000.\n")
     try:
         delta_o = float(delta_o)
+        if delta_o == -1000:
+            print("Ignorando efeitos de vibronic shift!")
     except: 
         print("Tem que ser um número!")
         sys.exit()
