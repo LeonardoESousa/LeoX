@@ -335,15 +335,15 @@ def gather_data(G, freqlog, opc, delta_o):
                         line = line.split()
                         scfs.append(27.2114*float(line[4]))
                 if corrected != -1 and len(scfs) == 1: #abspcm
-                    vibronic = 0.5*(abs(delta_o) - abs(corrected))
+                    vibronic = 0.5*(abs(float(delta_o)) - abs(float(corrected)))
                     f.write("Excited State 1:\t"+corrected+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 elif corrected != -1 and len(scfs) == 2: #emipcm     
                     energy = str(np.round(total_corrected - scfs[-1],3))
-                    vibronic = 0.5*(abs(delta_o) - abs(energy))
+                    vibronic = 0.5*(abs(float(delta_o)) - abs(float(energy)))
                     f.write("Excited State 1:\t"+energy+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 else:
                     for i in range(len(energies)):
-                        vibronic = 0.5*(abs(delta_o) - abs(energies[i]))
+                        vibronic = 0.5*(abs(float(delta_o)) - abs(float(energies[i])))
                         f.write("Excited State "+numeros[i]+"\t"+energies[i]+"\t"+fs[i]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 f.write("\n")   
 
