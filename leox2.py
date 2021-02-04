@@ -318,7 +318,7 @@ def gather_data(G, freqlog, opc, delta_o):
     with open("Samples.lx", 'w') as f:
         for file in files:
             num = file.split("-")[1]
-            vibronic, broadening = 0, opc
+            broadening = opc
             f.write("Geometria "+num+":  Vertical transition (eV) Oscillator strength Vibronic Shift (eV) Broadening Factor (eV) \n")
             numeros, energies, fs, scfs = [], [], [], []
             corrected, total_corrected = -1, -1
