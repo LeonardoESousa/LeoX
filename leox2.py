@@ -306,7 +306,7 @@ def rotaciona(G1,G,massas):
     
             
 
-def gather_data(G, freqlog, opc):
+def gather_data(G, freqlog, opc, delta_o):
     F, M = pega_freq(freqlog)
     NNC = pega_modos(G,freqlog)
     massas = pega_massas(freqlog,G)
@@ -335,12 +335,15 @@ def gather_data(G, freqlog, opc):
                         line = line.split()
                         scfs.append(27.2114*float(line[4]))
                 if corrected != -1 and len(scfs) == 1: #abspcm
+                    vibronic = 0.5*(abs(delta_o) - abs(corrected))
                     f.write("Excited State 1:\t"+corrected+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 elif corrected != -1 and len(scfs) == 2: #emipcm     
                     energy = str(np.round(total_corrected - scfs[-1],3))
+                    vibronic = 0.5*(abs(delta_o) - abs(energy))
                     f.write("Excited State 1:\t"+energy+"\t"+fs[0]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 else:
                     for i in range(len(energies)):
+                        vibronic = 0.5*(abs(delta_o) - abs(energies[i]))
                         f.write("Excited State "+numeros[i]+"\t"+energies[i]+"\t"+fs[i]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 f.write("\n")   
 
@@ -537,6 +540,13 @@ elif op == '3':
     except: 
         print("Tem que ser um número, diabo!")
         sys.exit()  
+    delta_o = input("Qual o delta otimizado (em eV)? (Diferença entre as energias das geometrias otimizadas no estado inicial e final)\n")
+    try:
+        delta_o = float(delta_o)
+    except: 
+        print("Tem que ser um número!")
+        sys.exit()
+    
     freqlog = busca_log("É esse o log de frequência?")
     G, atm = pega_geom(freqlog)
     print("Espectro de que?")
@@ -558,7 +568,7 @@ elif op == '3':
         sys.exit()
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
-    gather_data(G,freqlog, opc)
+    gather_data(G,freqlog, opc, delta_o)
     spectra(tipo, num_ex, nr)
 elif op == '2':
     op = input("O ts está pronto já? s ou n?\n")
