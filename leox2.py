@@ -46,31 +46,16 @@ def pega_freq(freqlog):
     return F, M
 
 def pega_geom(freqlog):
-    atomos = []
     if ".log" in freqlog:
         status = 0
-        status2 = 0
-        busca = "Input orientation:"
-        with open(freqlog, 'r') as f:
-            for line in f:
-                if "Standard orientation" in line:
-                    busca = "Standard orientation:"
-                if 'geom=allcheckpoint' in line:
-                    status2 = 1 
-                if "Optimized Parameters" in line and status2 == 0:
-                    status = 1
-        print("\nEstou usando o", busca,"\n")           
-        G = np.zeros((1,3))
+        busca = "orientation:"
         n = -1
         with open(freqlog, 'r') as f:
             for line in f:
-                if status == 1 and "Optimized Parameters" in line:
-                    status = 0
-                if n < 0 and status == 0:
-                    if busca in line:
-                        n = 0
-                    else:
-                        pass
+                if busca in line and 'Dipole' not in line:
+                    n = 0
+                    G = np.zeros((1,3))
+                    atomos = []
                 elif n >= 0 and n < 4:
                     n += 1
                 elif n >= 4 and "---------------------------------------------------------------------" not in line:    
@@ -82,7 +67,7 @@ def pega_geom(freqlog):
                     G = np.vstack((G,NG))       
                     n += 1  
                 elif "---------------------------------------------------------------------" in line and n>1:
-                    break       
+                    n = -1       
     else:
         G = np.zeros((1,4))
         with open(freqlog, 'r') as f:
@@ -93,8 +78,20 @@ def pega_geom(freqlog):
                     G = np.vstack((G,vetor))
                 except:
                     pass
-    G = G[1:,:] #input geometry                 
+    try:
+        G = G[1:,:]                 
+    except:
+        print("Sem geometria no log de frequência! Adeus!")
+        sys.exit()
     return G, atomos
+
+def salva_geom(G,atomos):
+    atomos = np.array([atomos]).astype(float)
+    atomos = atomos.T
+    G = np.hstack((atomos,G))
+    np.savetxt('opt_geom.txt', G, delimiter='\t', fmt=['%1.1u','%+1.5f','%+1.5f','%+1.5f'])
+    print("A geometria otimizada que vai ser usada está salva no arquivo opt_geom.txt!")
+
 
 def pega_massas(freqlog,G):
     _ , M = pega_freq(freqlog)
@@ -212,6 +209,7 @@ def pega_modos(G,freqlog):
 def sample_geom(freqlog, num_geoms, T, header, bottom):
     F, M = pega_freq(freqlog)
     G, atomos = pega_geom(freqlog)
+    salva_geom(G,atomos)
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
     print("\nGerando geometrias...\n")
