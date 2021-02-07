@@ -36,9 +36,7 @@ def pega_freq(freqlog):
     
     F = np.asarray(F)*(c*100*2*pi) #converte em frequencia angular
     try:
-        if F[0] < 0:
-            print("Frequência negativa! Volte para casa 1")
-            sys.exit()
+        f = F[0]
     except:
         print("Log sem frequência! Volte para casa 1") 
         sys.exit()
@@ -206,8 +204,37 @@ def pega_modos(G,freqlog):
     else:
         return pega_modosLP(G,freqlog)
 
+def shake(freqlog, T):
+    F, M = pega_freq(freqlog)
+    G, atomos = pega_geom(freqlog)
+    NNC = pega_modos(G,freqlog)
+    num_atom = np.shape(G)[0]   
+    A = np.zeros((3*num_atom,1))
+    F = F[F < 0]
+    if len(F) == 0:
+        print("Não há frequências imaginárias! Adeus!")
+        sys.exit()
+    F = -1*F    
+    for i in range(0,len(F)):
+        x = np.linspace(-5, 5, 10000) #ja em angstrom
+        boltz = np.tanh(hbar*F[i]/(2*kb*T))
+        prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
+        q = random.choices(x, prob)
+        A += q[0]*(np.expand_dims(NNC[:,i],axis=1))
+    A = np.reshape(A,(num_atom,3))
+    Gfinal = A + G  
+    with open("Shaken.xyz", 'w') as f:
+        for k in range(0, np.shape(Gfinal)[0]):
+            text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
+            f.write(text+"\n")
+    print("Geometria salva no arquivo Shaken.xyz!")
+
+
 def sample_geom(freqlog, num_geoms, T, header, bottom):
     F, M = pega_freq(freqlog)
+    if F[0] < 0:
+        print("Frequência negativa! Volte para casa 1")
+        sys.exit()
     G, atomos = pega_geom(freqlog)
     salva_geom(G,atomos)
     NNC = pega_modos(G,freqlog)
@@ -481,6 +508,7 @@ print("Tenho só o log de frequência. Quero gerar geometrias - digite 1")
 print("Geometrias prontas, quero botar para rodar com o ts - digite 2")
 print("Tudo pronto, quero gerar o espectro - digite 3")
 print("Quero saber a quantas anda essa joça - digite 4")
+print("Quero sacudir uma molécula para me livrar de frequências imaginárias - digite 5")
 op = input()
 if op == '1':
     freqlog = busca_log("É esse o log de frequência?")
@@ -583,8 +611,12 @@ elif op == '2':
     batch(gaussian) 
 elif op == '4':
     andamento()
+elif op == '5':
+    freqlog = busca_log("É esse o log de frequência?")
+    T = float(input("Temperatura em Kelvin? (Sugiro ao menos 600 K)\n")) #K
+    shake(freqlog,T)
 else:
-    print("Tem que ser um dos quatro, animal!")
+    print("Tem que ser um dos cinco, animal!")
     sys.exit()
 
 
