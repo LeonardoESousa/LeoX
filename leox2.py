@@ -445,17 +445,28 @@ def spectra(tipo, num_ex, nr):
 def busca_input(freqlog):
     base = 'lalala'
     exc = False
+    header = ''
     with open(freqlog, 'r') as f:
+        search = False
         for line in f:
-            if "#" in line:
-                if 'TD' in line.upper():
-                    exc = True
-                line = line.split()
-                for elem in line:
-                    if "/" in elem:
-                        base = elem
-                        break
-    return base, exc                 
+            if "#" in line and not search and header == '':
+                search = True
+                header += line.lstrip().replace('\n','')
+                print('last',header[-1])
+            elif search and '----------' not in line:
+                print('final',line[0])
+                header += line.lstrip().replace('\n','')
+            elif search and '----------' in line:
+                search = False
+                break
+    if 'TD' in header.upper():
+        exc = True
+    header = header.split()
+    for elem in header:
+        if "/" in elem:
+            base = elem.replace('#','')
+            break
+    return base, exc                
 
 def batch(gauss):
     files = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
@@ -627,3 +638,6 @@ else:
     print("Tem que ser um dos cinco, animal!")
     sys.exit()
 
+
+    
+       
