@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-#import matplotlib.pyplot as plt
 import numpy as np
 import os
 import random
 import sys
-from subprocess import call
 from decimal import Decimal
-from scipy.linalg import orth
 
 epsilon0 = 8.854187817*10**(-12) #F/m
 hbar = 6.582119514*10**(-16) #eV s
@@ -208,26 +205,32 @@ def shake(freqlog, T):
     F, M = pega_freq(freqlog)
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]   
-    A = np.zeros((3*num_atom,1))
+    num_atom = np.shape(G)[0]
+    A1 = np.zeros((3*num_atom,1))
+    A2 = np.zeros((3*num_atom,1))
     F = F[F < 0]
     if len(F) == 0:
         print("Não há frequências imaginárias! Adeus!")
         sys.exit()
-    F = -1*F    
-    for i in range(0,len(F)):
-        x = np.linspace(-5, 5, 10000) #ja em angstrom
-        boltz = np.tanh(hbar*F[i]/(2*kb*T))
-        prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
-        q = random.choices(x, prob)
-        A += q[0]*(np.expand_dims(NNC[:,i],axis=1))
-    A = np.reshape(A,(num_atom,3))
-    Gfinal = A + G  
-    with open("Shaken.xyz", 'w') as f:
+    F = -1*F
+    for i in range(len(F)): # LL:
+        q = [-1*T,T]
+        A1 += q[0]*(np.expand_dims(NNC[:,i],axis=1))
+        A2 += q[1]*(np.expand_dims(NNC[:,i],axis=1))
+    A1 = np.reshape(A1,(num_atom,3))
+    A2 = np.reshape(A2,(num_atom,3))
+    Gfinal  = A1 + G
+    Gfinal2 = A2 + G
+    with open("shaken.xyz", 'w') as f:
+        f.write('#Geometria com deformação de '+str(T)+" A:\n" )
         for k in range(0, np.shape(Gfinal)[0]):
             text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
             f.write(text+"\n")
-    print("Geometria salva no arquivo Shaken.xyz!")
+        f.write('\n#Geometria com deformação de '+str(-T)+" A:\n" )
+        for k in range(0, np.shape(Gfinal2)[0]):
+            text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal2[k,0],Gfinal2[k,1],Gfinal2[k,2])
+            f.write(text+"\n")
+    print("Há 2 geometrias salvas no arquivo shaken.xyz!")
 
 
 def sample_geom(freqlog, num_geoms, T, header, bottom):
@@ -240,25 +243,30 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
     print("\nGerando geometrias...\n")
-    for n in range(1,num_geoms+1):
-        A = np.zeros((3*num_atom,1))
-        for i in range(0,len(F)):
-            x = np.linspace(-5, 5, 10000) #ja em angstrom
-            boltz = np.tanh(hbar*F[i]/(2*kb*T))
-            prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
-            q = random.choices(x, prob)
-            A += q[0]*(np.expand_dims(NNC[:,i],axis=1))
-        A = np.reshape(A,(num_atom,3))
-        Gfinal = A + G  
-        with open("Geometria-"+str(n)+"-.com", 'w') as f:
-                f.write(header.replace("UUUUU",str(n)))
-                for k in range(0, np.shape(Gfinal)[0]):
-                    text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
-                    f.write(text+"\n")
-                f.write("\n"+bottom.replace("UUUUU",str(n)))
-        progress = 100*n/num_geoms
-        text = "%2.1f" % progress
-        print(text, "% das geometrias feitas.",end="\r", flush=True)
+    with open('Magnitudes.txt', 'w') as file:
+        for n in range(1,num_geoms+1):
+            A = np.zeros((3*num_atom,1))
+            numbers = []
+            for i in range(0,len(F)):
+                x = np.linspace(-5, 5, 10000) #ja em angstrom
+                boltz = np.tanh(hbar*F[i]/(2*kb*T))
+                prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
+                q = random.choices(x, prob)
+                numbers.append(q[0])
+                A += q[0]*(np.expand_dims(NNC[:,i],axis=1))
+            numbers = np.round(np.array(numbers)[np.newaxis,:],4)
+            np.savetxt(file, numbers, delimiter='\t', fmt='%s')
+            A = np.reshape(A,(num_atom,3))
+            Gfinal = A + G  
+            with open("Geometria-"+str(n)+"-.com", 'w') as f:
+                    f.write(header.replace("UUUUU",str(n)))
+                    for k in range(0, np.shape(Gfinal)[0]):
+                        text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
+                        f.write(text+"\n")
+                    f.write("\n"+bottom.replace("UUUUU",str(n)))
+            progress = 100*n/num_geoms
+            text = "%2.1f" % progress
+            print(text, "% das geometrias feitas.",end="\r", flush=True)
     
     print("\n\nC'est fini! Já pode botar pra rodar.")   
     
@@ -613,12 +621,9 @@ elif op == '4':
     andamento()
 elif op == '5':
     freqlog = busca_log("É esse o log de frequência?")
-    T = float(input("Temperatura em Kelvin? (Sugiro ao menos 600 K)\n")) #K
+    T = float(input("Magnitude da deformação? (Algo entre 0.1 e 0.5 Angstrom)\n")) #K
     shake(freqlog,T)
 else:
     print("Tem que ser um dos cinco, animal!")
     sys.exit()
 
-
-    
-        
