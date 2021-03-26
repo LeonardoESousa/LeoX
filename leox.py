@@ -442,15 +442,21 @@ def busca_input(freqlog):
     base = 'lalala'
     exc = False
     header = ''
+    nproc = '4'
+    mem   = '1GB'
     with open(freqlog, 'r') as f:
         search = False
         for line in f:
-            if "#" in line and not search and header == '':
+            if '%nproc' in line:
+                line = line.split('=')
+                nproc = line[-1].replace('\n','')
+            elif '%mem' in line:
+                line = line.split('=')
+                mem = line[-1].replace('\n','')
+            elif "#" in line and not search and header == '':
                 search = True
                 header += line.lstrip().replace('\n','')
-                print('last',header[-1])
             elif search and '----------' not in line:
-                print('final',line[0])
                 header += line.lstrip().replace('\n','')
             elif search and '----------' in line:
                 search = False
@@ -458,11 +464,13 @@ def busca_input(freqlog):
     if 'TD' in header.upper():
         exc = True
     header = header.split()
+    base = ''
     for elem in header:
-        if "/" in elem:
-            base = elem.replace('#','')
-            break
-    return base, exc                
+        if "/" in elem and 'IOP' not in elem.upper():
+            base += elem.replace('#','')
+        elif 'IOP' in elem.upper() and ('108' in elem or '107' in elem):
+            base += ' '+elem
+    return base, exc, nproc, mem                
 
 def batch(gauss):
     files = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
@@ -527,12 +535,12 @@ print("Quero sacudir uma molécula para me livrar de frequências imaginárias -
 op = input()
 if op == '1':
     freqlog = busca_log("É esse o log de frequência?")
-    base, temtd = busca_input(freqlog)
+    base, temtd, nproc, mem = busca_input(freqlog)
     print("\n"+base)
     resp = input("Funcional e base estão corretos? Se sim, Enter. Se não, escreva (funcional/base).\n")
     if resp != "":
         base = resp 
-    adicional = input("Se houver comandos adicionais (iops, por exemplo), digite-os. Caso contrário, aperte Enter.\n")
+    adicional = input("Se houver comandos adicionais, digite-os. Caso contrário, aperte Enter.\n")
     base += " "+adicional
     num_ex = input("Quantos estados excitados?\n")
     try:
@@ -540,9 +548,17 @@ if op == '1':
     except:
         print("Deu ruim!")
         sys.exit()
-    nproc = input('nproc?\n')
-    mem = input("mem?\n")
+    print('%nproc='+nproc)    
+    print('%mem='+mem)
+    procmem = input('Nproc e Mem estão corretos? s ou n?\n  ')
+    if procmem != 's':
+        nproc = input('nproc?\n')
+        mem = input("mem?\n")
     num_geoms = int(input("Quantas geometrias?\n")) #numero de gometrias para gerar
+    tda = 'TD'
+    tamm = input('Usar TDA (Tamm-Dancoff Approximation)? s ou n?\n')
+    if tamm == 's':
+        tda = 'TDA'
     pcm = input("Incluir solvente (SS-PCM)? s ou n?\n")
     if pcm == 's':
         solv = input("Qual o solvente? Se quiser especificar as constantes dielétricas, digite read.\n")
@@ -561,20 +577,20 @@ if op == '1':
             epss = "\n"
         if temtd:
             print("Preparando inputs para espectro de emissão!\n")
-            header = "%chk=stepUUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" TD(NSTATES=1,EQSOLV) SCRF=(CorrectedLR,"+solv+") IOp(10/74=20)\n\nTITLE\n\n0 1\n"
+            header = "%chk=stepUUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES=1,EQSOLV) SCRF=(CorrectedLR,"+solv+") IOp(10/74=20)\n\nTITLE\n\n0 1\n"
             bottom = "NonEq=Write\n\n--Link1--\n%oldchk=stepUUUUU.chk\n%chk=step2UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF("+solv+")\n\nTITLE\n\n0 1\n\nNONEQ=Read\n"+epss
         else:
             print("Preparando inputs para espectro de absorção!\n")
-            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") TD=(NSTATES=1,NonEqSolv) IOP(10/74=10)\n\nTITLE\n\n0 1\n"
+            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=1,NonEqSolv) IOP(10/74=10)\n\nTITLE\n\n0 1\n"
             bottom = epss
     elif pcm == 'n':
-        header = "%nproc="+nproc+"\n%Mem="+mem+"\n# td=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
+        header = "%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
         bottom ="\n\n"
     else:
         print("É s ou n. Adeus.")
         sys.exit()
     T = float(input("Temperatura em Kelvin?\n")) #K
-    if T == 0:
+    if T <= 0:
         print("Você está em violação da Terceira Lei da Termodinâmica... Aí não dá.")
         sys.exit()
     sample_geom(freqlog, num_geoms, T, header, bottom)    
