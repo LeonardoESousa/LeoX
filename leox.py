@@ -4,7 +4,6 @@ import os
 import random
 import sys
 from decimal import Decimal
-from subprocess import call
 
 epsilon0 = 8.854187817*10**(-12) #F/m
 hbar = 6.582119514*10**(-16) #eV s
@@ -345,7 +344,7 @@ def gather_data(G, freqlog, opc, tipo):
     NNC = pega_modos(G,freqlog)
     massas = pega_massas(freqlog,G)
     files = [file for file in os.listdir('.') if ".log" in file and "Geometria-" in file ]    
-    files = sorted(files, key=lambda num: float(num.split('-')[1]))
+    files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     with open("Samples.lx", 'w') as f:
         for file in files:
             num = file.split("-")[1]
@@ -579,11 +578,11 @@ if op == '1':
             epss = "\n"
         if temtd:
             print("Preparando inputs para espectro de emissão!\n")
-            header = "%chk=stepUUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES=1,EQSOLV) SCRF=(CorrectedLR,"+solv+") IOp(10/74=20)\n\nTITLE\n\n0 1\n"
-            bottom = "NonEq=Write\n\n--Link1--\n%oldchk=stepUUUUU.chk\n%chk=step2UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF("+solv+")\n\nTITLE\n\n0 1\n\nNONEQ=Read\n"+epss
+            header = "%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES=3) SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
+            bottom = epss+"\n--Link1--\n%nproc="+nproc+"\n%mem="+mem+"\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,"+solv+")\n\nTITLE\n\n0 1\n\n"+epss
         else:
             print("Preparando inputs para espectro de absorção!\n")
-            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=1,NonEqSolv) IOP(10/74=10)\n\nTITLE\n\n0 1\n"
+            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=3)\n\nTITLE\n\n0 1\n"
             bottom = epss
     elif pcm == 'n':
         header = "%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
@@ -646,3 +645,4 @@ else:
 
     
         
+
