@@ -31,11 +31,11 @@ def pega_freq(freqlog):
                 for j in range(3,len(line)):
                     M.append(float(line[j]))
     
-    F = np.asarray(F)*(c*100*2*pi) #converte em frequencia angular
+    F = np.array(F)*(c*100*2*pi) #converte em frequencia angular
     try:
         f = F[0]
     except:
-        print("Log sem frequência! Volte para casa 1") 
+        print("No frequencies in the log! Goodbye!") 
         sys.exit()
     M = np.asarray(M)*amu # converte amu em kg
     return F, M
@@ -76,7 +76,7 @@ def pega_geom(freqlog):
     try:
         G = G[1:,:]                 
     except:
-        print("Sem geometria no log de frequência! Adeus!")
+        print("No geometry in the log file! Goodbye!")
         sys.exit()
     return G, atomos
 
@@ -85,7 +85,7 @@ def salva_geom(G,atomos):
     atomos = atomos.T
     G = np.hstack((atomos,G))
     np.savetxt('opt_geom.txt', G, delimiter='\t', fmt=['%1.1u','%+1.5f','%+1.5f','%+1.5f'])
-    print("A geometria otimizada que vai ser usada está salva no arquivo opt_geom.txt!")
+    print("The optimized geometry that is used is saved in the opt_geom.txt file!")
 
 
 def pega_massas(freqlog,G):
@@ -210,7 +210,7 @@ def shake(freqlog, T):
     A2 = np.zeros((3*num_atom,1))
     F = F[F < 0]
     if len(F) == 0:
-        print("Não há frequências imaginárias! Adeus!")
+        print("No imaginary frquencies in the log file. Goodbye!")
         sys.exit()
     F = -1*F
     for i in range(len(F)): # LL:
@@ -222,28 +222,32 @@ def shake(freqlog, T):
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
     with open("shaken.xyz", 'w') as f:
-        f.write('#Geometria com deformação de '+str(T)+" A:\n" )
+        f.write('#Geometry with displacement of '+str(T)+" A:\n" )
         for k in range(0, np.shape(Gfinal)[0]):
             text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
             f.write(text+"\n")
-        f.write('\n#Geometria com deformação de '+str(-T)+" A:\n" )
+        f.write('\n#Geometry with displacement of '+str(-T)+" A:\n" )
         for k in range(0, np.shape(Gfinal2)[0]):
             text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal2[k,0],Gfinal2[k,1],Gfinal2[k,2])
             f.write(text+"\n")
-    print("Há 2 geometrias salvas no arquivo shaken.xyz!")
+    print("There are 2 geometries saved on shaken.xyz!")
 
 
 def sample_geom(freqlog, num_geoms, T, header, bottom):
     F, M = pega_freq(freqlog)
     if F[0] < 0:
-        print("Frequência negativa! Volte para casa 1")
+        print("Imaginary frequency! Goodbye!")
         sys.exit()
+    try:
+        os.mkdir('Geometries')
+    except:
+        pass        
     G, atomos = pega_geom(freqlog)
     salva_geom(G,atomos)
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
-    print("\nGerando geometrias...\n")
-    with open('Magnitudes.txt', 'w') as file:
+    print("\nGenerating geometries...\n")
+    with open('Magnitudes.lx', 'w') as file:
         for n in range(1,num_geoms+1):
             A = np.zeros((3*num_atom,1))
             numbers = []
@@ -258,7 +262,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             np.savetxt(file, numbers, delimiter='\t', fmt='%s')
             A = np.reshape(A,(num_atom,3))
             Gfinal = A + G  
-            with open("Geometria-"+str(n)+"-.com", 'w') as f:
+            with open("Geometries/Geometry-"+str(n)+"-.com", 'w') as f:
                     f.write(header.replace("UUUUU",str(n)))
                     for k in range(0, np.shape(Gfinal)[0]):
                         text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
@@ -266,9 +270,9 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
                     f.write("\n"+bottom.replace("UUUUU",str(n)))
             progress = 100*n/num_geoms
             text = "%2.1f" % progress
-            print(text, "% das geometrias feitas.",end="\r", flush=True)
+            print(' ', text, "% of the geometries done.",end="\r", flush=True)
     
-    print("\n\nC'est fini! Já pode botar pra rodar.")   
+    print("\n\nC'est fini! Ready to run.")   
     
     #Plots the histograms of normal coordinates
     #random.seed(10)
@@ -292,64 +296,19 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
     #       #plt.plot(x,prob2)
     #       plt.hist(q2, bins=40)
     #plt.show()
-    
-
-def rotaciona(G1,G,massas):
-    atoms = [massas[:,1][3*i] for i in range(int(len(massas[:,1])/3))]
-    G1 = G1[:,1:]
-    cm_G1 = np.array([np.average(G1[:,0],weights=atoms), np.average(G1[:,1],weights=atoms), np.average(G1[:,2],weights=atoms)])
-    cm_G = np.array([np.average(G[:,0],weights=atoms), np.average(G[:,1],weights=atoms), np.average(G[:,2],weights=atoms)])
-    trans11 = cm_G1 
-    trans22 = cm_G
-    trans1, trans2 = cm_G1, cm_G 
-    for i in range(np.shape(G)[0]):
-        trans1 = np.vstack((trans1,trans11))
-        trans2 = np.vstack((trans2,trans22))
-    trans2 = trans2[1:,:]
-    trans1 = trans1[1:,:]
-    G = G - trans2
-    G1 = G1 - trans1
-    shifts = [1000000]
-    for i in range(np.shape(G1)[0]):
-        a = G[i,:] #vetor da geom final
-        b = G1[i,:] #vetor da geom sampleada
-        v = np.cross(a,b)/(np.sqrt(np.inner(a,a))*np.sqrt(np.inner(b,b)))
-        s = np.sqrt(np.inner(v,v))
-        c = np.inner(a,b)/(np.sqrt(np.inner(a,a))*np.sqrt(np.inner(b,b)))
-        V = np.array([[0, -v[2], v[1]],[v[2], 0, -v[0]],[-v[1], v[0], 0]])
-        if s != 0:
-            R = np.identity(3) + V + np.matmul(V,V)*((1-c)/s**2)
-        else:
-            R = np.identity(3)
-        NG = np.zeros([1,3])
-        for j in range(np.shape(G1)[0]):
-            vetor = np.matmul(R,G[j,:])
-            NG = np.vstack((NG,vetor))
-        NG = NG[1:,:]
-        NG2 = (NG - G1)**2
-        shift = (np.average(NG2.flatten('F')))#,weights=atoms1))
-        shifts.append(shift)
-        if shift <= min(shifts):
-            GeomFinal = NG - G1 
-    #print(min(shifts))
-    #print(G1)
-    #print(GeomFinal,"\n\n")
-    #input("pausa")
-    return GeomFinal
-    
             
 
 def gather_data(G, freqlog, opc, tipo):
     F, M = pega_freq(freqlog)
     NNC = pega_modos(G,freqlog)
     massas = pega_massas(freqlog,G)
-    files = [file for file in os.listdir('.') if ".log" in file and "Geometria-" in file ]    
+    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometry-" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     with open("Samples.lx", 'w') as f:
         for file in files:
             num = file.split("-")[1]
             broadening = opc
-            f.write("Geometria "+num+":  Vertical transition (eV) Oscillator strength Vibronic Shift (eV) Broadening Factor (eV) \n")
+            f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Vibronic Shift (eV) Broadening Factor (eV) \n")
             numeros, energies, fs, scfs = [], [], [], []
             corrected, total_corrected = -1, -1
             with open(file, 'r') as g:
@@ -387,7 +346,6 @@ def gauss(x,v,s):
     return y
 
 
-
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
@@ -397,7 +355,7 @@ def spectra(tipo, num_ex, nr):
     N = 0
     with open("Samples.lx", 'r') as f:
         for line in f:
-            if "Geometria" in line:
+            if "Geometry" in line:
                 N += 1
             elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex:
                 line = line.split()
@@ -405,12 +363,12 @@ def spectra(tipo, num_ex, nr):
                 O.append(float(line[4]))
                 D.append(float(line[5]))
                 S.append(float(line[6]))
-    coms = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
+    coms = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
     if len(V) == 0 or len(O) == 0:
-        print("Primeiro tem que fazer as opções 1 e 2 do programa, sua besta!")
+        print("You need to run steps 1 and 2 first! Goodbye!")
         sys.exit()
     elif len(V) != len(coms)*max(num_ex):
-        print("Número de logs é inferior ao número de inputs. Algo errado não está certo! Vou fazer o espectro mesmo assim.")
+        print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.asarray(V)
     O = np.asarray(O)
     D = np.asarray(D)
@@ -423,15 +381,15 @@ def spectra(tipo, num_ex, nr):
     y = np.zeros((len(x),))
     if tipo == 'abs':
         arquivo = 'cross_section.lx'
-        primeira = "%4s %4s" % ("#Energy (ev)", "cross_section (A^2)\n")
+        primeira = "%4s %4s" % ("#Energy(ev)", "cross_section(A^2)\n")
         for i in range(0,len(espectro)):
             y = y + espectro[i]*gauss(x,V[i]+D[i],S[i])
     else:
         arquivo = 'differential_rate.lx'
-        primeira = "%4s %4s" % ("#Energy (ev)", "diff_rate\n")
+        primeira = "%4s %4s" % ("#Energy(ev)", "diff_rate\n")
         for i in range(0,len(espectro)):
             y = y + espectro[i]*gauss(x,V[i]+D[i],S[i])
-    print(N, "geometrias consideradas")     
+    print(N, "geometries considered.")     
     y = y/float(N)
     with open(arquivo, 'w') as f:
         f.write(primeira)
@@ -474,8 +432,8 @@ def busca_input(freqlog):
     return base, exc, nproc, mem                
 
 def batch(gauss):
-    files = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
-    logs = [file for file in os.listdir(".") if 'Geometria-' in file and '.log' in file]
+    files = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
+    logs = [file for file in os.listdir(".") if 'Geometry-' in file and '.log' in file]
     prontos = []
     for file in logs:
         with open(file, 'r') as f:
@@ -490,31 +448,31 @@ def batch(gauss):
                 call(['tsp', gauss, file])
 
 def andamento():
-    coms = [file for file in os.listdir(".") if 'Geometria-' in file and '.com' in file]
-    logs = [file for file in os.listdir(".") if 'Geometria-' in file and '.log' in file]
+    coms = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.com' in file]
+    logs = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.log' in file]
     count = 0
     for file in logs:
         with open(file, 'r') as f:
             for line in f:
                 if "Normal termination" in line:
                     count += 1
-    print("\n\nHá", count, "TDs já prontos de um total de", len(coms), "inputs")                
-    print("Está", 100*count/len(coms), "% completo")                
+    print("\n\nThere are", count, "completed calculations out of", len(coms), "inputs")                
+    print("It is", np.round(100*count/len(coms),1), "% done.")                
 
 def busca_log(frase):                   
-    files = [file for file in os.listdir('.') if ".log" in file and "Geometria-" not in file]
+    files = [file for file in os.listdir('.') if ".log" in file and "Geometry-" not in file]
     if len(files) == 0:
-        print("Sem log de Frequência.")
+        print("No frequency log found. Goodbye!")
         sys.exit()
     freqlog = 'nada0022'    
     for file in files:
         print("\n"+file)
-        resp = input(frase+" s ou n?\n")
-        if resp == 's':
+        resp = input(frase+" y ou n?\n")
+        if resp.lower() == 'y':
             freqlog = file
             break
     if freqlog == 'nada0022':
-        print("Sem log de Frequência")
+        print("No frequency log found. Goodbye!")
         sys.exit()
     return freqlog  
     
@@ -527,99 +485,99 @@ print("#        #       #    #   # #  ")
 print("#        #       #    #  #   # ")
 print("#######  ######   ####  #     #")
 print("----SPECTRA FOR THE PEOPLE!----\n")
-print("Quer fazer o que??\n")
-print("Tenho só o log de frequência. Quero gerar geometrias - digite 1")
-print("Geometrias prontas, quero botar para rodar com o ts - digite 2")
-print("Tudo pronto, quero gerar o espectro - digite 3")
-print("Quero saber a quantas anda essa joça - digite 4")
-print("Quero sacudir uma molécula para me livrar de frequências imaginárias - digite 5")
+print("Your options:\n")
+print("I have run frequency calculations. I want to generate the inputs for the spectrum calculation - type 1")
+print("My inputs are set, I want to run the spectrum calculations - type 2")
+print("Calculations are done, I want to generate the spectrum - type 3")
+print("I want to check the progess of the calculations - type 4")
+print("I want to shake a molecule to help me get rid of imaginary frequencies - type 5")
 op = input()
 if op == '1':
-    freqlog = busca_log("É esse o log de frequência?")
+    freqlog = busca_log("Is this the log file for the frequency calculation?")
     base, temtd, nproc, mem = busca_input(freqlog)
     print("\n"+base)
-    resp = input("Funcional e base estão corretos? Se sim, Enter. Se não, escreva (funcional/base).\n")
+    resp = input("Are basis and functional correct? If so, pres Enter. Otherwise, type (functional/basis).\n")
     if resp != "":
         base = resp 
-    adicional = input("Se houver comandos adicionais, digite-os. Caso contrário, aperte Enter.\n")
+    adicional = input("If there are extra keywords, type them. Otherwise, press Enter.\n")
     base += " "+adicional
-    num_ex = input("Quantos estados excitados?\n")
+    num_ex = input("How many excited states?\n")
     try:
         num_ex = int(num_ex)
     except:
-        print("Deu ruim!")
+        print("This must be a number! Goodbye!")
         sys.exit()
     print('%nproc='+nproc)    
     print('%mem='+mem)
-    procmem = input('Nproc e Mem estão corretos? s ou n?\n  ')
-    if procmem != 's':
+    procmem = input('Are Nproc and Mem correct? y or n?\n  ')
+    if procmem.lower() != 'y':
         nproc = input('nproc?\n')
         mem = input("mem?\n")
-    num_geoms = int(input("Quantas geometrias?\n")) #numero de gometrias para gerar
+    num_geoms = int(input("How many geometries to be sampled?\n"))
     tda = 'TD'
-    tamm = input('Usar TDA (Tamm-Dancoff Approximation)? s ou n?\n')
-    if tamm == 's':
+    tamm = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
+    if tamm.lower() == 's':
         tda = 'TDA'
-    pcm = input("Incluir solvente (SS-PCM)? s ou n?\n")
-    if pcm == 's':
-        solv = input("Qual o solvente? Se quiser especificar as constantes dielétricas, digite read.\n")
-        if solv == "read":
-            eps1 = input("Digite a constante dielétrica estática.\n")
-            eps2 = input("Digite a constante dielétrica dinâmica (n^2).\n")
+    pcm = input("Include state specific solvent approach? y or n?\n")
+    if pcm.lower() == 's':
+        solv = input("What is the  solvent? If you want to specify the dielectric constants yourself, type read.\n")
+        if solv.lower() == "read":
+            eps1 = input("Type the static dielectric constant.\n")
+            eps2 = input("Type the dynamic dielectric constant (n^2).\n")
             try:
                 float(eps1)
                 float(eps2)
             except:
-                print("As constantes devem ser números.")
+                print("The constants must be numbers. Goodbye!")
                 sys.exit()
             epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
         else:
             solv = "SOLVENT="+solv
             epss = "\n"
         if temtd:
-            print("Preparando inputs para espectro de emissão!\n")
+            print("Inputs suitable for emission spectra!\n")
             header = "%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES=3) SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
             bottom = epss+"\n--Link1--\n%nproc="+nproc+"\n%mem="+mem+"\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,"+solv+")\n\nTITLE\n\n0 1\n\n"+epss
         else:
-            print("Preparando inputs para espectro de absorção!\n")
+            print("Inputs suitable for absortion spectra!!\n")
             header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=3)\n\nTITLE\n\n0 1\n"
             bottom = epss
     elif pcm == 'n':
         header = "%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
         bottom ="\n\n"
     else:
-        print("É s ou n. Adeus.")
+        print("It should be y or n. Goodbye!.")
         sys.exit()
-    T = float(input("Temperatura em Kelvin?\n")) #K
+    T = float(input("Temperature in Kelvin?\n")) #K
     if T <= 0:
-        print("Você está em violação da Terceira Lei da Termodinâmica... Aí não dá.")
+        print("Have you heard about absolute zero? Goodbye!")
         sys.exit()
     sample_geom(freqlog, num_geoms, T, header, bottom)    
 elif op == '3':
-    opc = input("Qual o desvio padrão das gaussianas? O padrão é usar kT.\n")
+    opc = input("What is the standard deviation of the gaussians? Should be typically around kT.\n")
     try:
         opc = float(opc)
     except: 
-        print("Tem que ser um número, diabo!")
+        print("It must be a number. Goodbye!!")
         sys.exit()  
     freqlog = busca_log("É esse o log de frequência?")
     G, atm = pega_geom(freqlog)
-    print("Espectro de que?")
-    tipo = input("Digite abs (absorção) ou emi (emissão)\n")
+    print("What kind of spectrum?")
+    tipo = input("Type abs (absorption) or emi (emission)\n")
     if tipo != 'abs' and tipo != 'emi':
-        print("Tem que ser um dos dois, animal!")
+        print("It must be either one. Goodbye!")
         sys.exit()
-    estados = input("Quantos estados excitados?\n")
+    estados = input("How many excited states?\n")
     try:
         estados = int(estados)
     except:
-        print("Fez alguma cagada!")
+        print("It must be an integer! Goodbye!")
         sys.exit()  
-    nr = input("Qual o índice de refração?\n")
+    nr = input("What is the refractive index?\n")
     try:
         nr = float(nr)
     except:
-        print("O índice deve ser um número.")
+        print("It must be a number. Goodbye!")
         sys.exit()
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
@@ -630,16 +588,16 @@ elif op == '2':
     if op != 's':
         print("Então vá aprontar o ts, animal!")
         sys.exit()
-    gaussian = input("Qual o gaussian? g09 ou g16?\n")
+    gaussian = input("Which gaussian? g09 ou g16?\n")
     batch(gaussian) 
 elif op == '4':
     andamento()
 elif op == '5':
     freqlog = busca_log("É esse o log de frequência?")
-    T = float(input("Magnitude da deformação? (Algo entre 0.1 e 0.5 Angstrom)\n")) #K
+    T = float(input("Magnitude of the displacement in Ångstrom? \n")) #K
     shake(freqlog,T)
 else:
-    print("Tem que ser um dos cinco, animal!")
+    print("It must be one of the options... Goodbye!")
     sys.exit()
 
 
