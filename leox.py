@@ -228,6 +228,12 @@ def shake(freqlog, T):
     print("There are 2 geometries saved on shaken.lx!")
 ###############################################################
 
+##CHECKS FOR EXISTING GEOMETRIES###############################
+def start_counter():
+    files = [file for file in os.listdir('Geometries') if ".com" in file and "Geometry-" in file]
+    return len(files)
+###############################################################
+
 ##SAMPLES GEOMETRIES###########################################
 def sample_geom(freqlog, num_geoms, T, header, bottom):
     F, M = pega_freq(freqlog)
@@ -237,6 +243,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
         os.mkdir('Geometries')
     except:
         pass        
+    counter = start_counter()
     G, atomos = pega_geom(freqlog)
     salva_geom(G,atomos)
     NNC = pega_modos(G,freqlog)
@@ -257,21 +264,21 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             np.savetxt(file, numbers, delimiter='\t', fmt='%s')
             A = np.reshape(A,(num_atom,3))
             Gfinal = A + G  
-            with open("Geometries/Geometry-"+str(n)+"-.com", 'w') as f:
+            with open("Geometries/Geometry-"+str(n+counter)+"-.com", 'w') as f:
                     f.write(header.replace("UUUUU",str(n)))
                     for k in range(0, np.shape(Gfinal)[0]):
                         text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
                         f.write(text+"\n")
                     f.write("\n"+bottom.replace("UUUUU",str(n)))
             progress = 100*n/num_geoms
-            text = "%2.1f" % progress
-            print(' ', text, "% of the geometries done.",end="\r", flush=True)
+            text = "{:2.1f}%".format(progress)
+            print(' ', text, "of the geometries done.",end="\r", flush=True)
     
     print("\n\nDone! Ready to run.")   
 ###############################################################    
 
             
-
+##COLLECTS RESULTS############################################## 
 def gather_data(opc, tipo):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometry-" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
@@ -313,6 +320,8 @@ def gather_data(opc, tipo):
                         vibronic = 0
                         f.write("Excited State "+numeros[i]+"\t"+energies[i]+"\t"+fs[i]+"\t"+str(vibronic)+"\t"+str(broadening)+"\n")
                 f.write("\n")   
+############################################################### 
+
 
 ##NORMALIZED GAUSSIAN##########################################
 def gauss(x,v,s):
@@ -320,6 +329,7 @@ def gauss(x,v,s):
     return y
 ###############################################################
 
+##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
@@ -373,6 +383,8 @@ def spectra(tipo, num_ex, nr):
         for i in range(0,len(x)):
             text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
             f.write(text)
+############################################################### 
+
 
 def busca_input(freqlog):
     base = 'lalala'
