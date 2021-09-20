@@ -230,7 +230,7 @@ def shake(freqlog, T):
 
 ##CHECKS FOR EXISTING GEOMETRIES###############################
 def start_counter():
-    files = [file for file in os.listdir('Geometries') if ".com" in file and "Geometry-" in file]
+    files = [file for file in os.listdir('Geometries') if ".com" in file and "Geometr" in file]
     return len(files)
 ###############################################################
 
@@ -249,7 +249,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
     print("\nGenerating geometries...\n")
-    with open('Magnitudes.lx', 'w') as file:
+    with open('Magnitudes_'+str(T)+'K_.lx', 'a') as file:
         for n in range(1,num_geoms+1):
             A = np.zeros((3*num_atom,1))
             numbers = []
@@ -280,7 +280,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc, tipo):
-    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometry-" in file ]    
+    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     with open("Samples.lx", 'w') as f:
         for file in files:
@@ -347,7 +347,7 @@ def spectra(tipo, num_ex, nr):
                 O.append(float(line[4]))
                 D.append(float(line[5]))
                 S.append(float(line[6]))
-    coms = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
+    coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != len(coms)*max(num_ex):
@@ -421,8 +421,8 @@ def busca_input(freqlog):
     return base, exc, nproc, mem                
 
 def batch(gauss):
-    files = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
-    logs  = [file for file in os.listdir(".") if 'Geometry-' in file and '.log' in file]
+    files = [file for file in os.listdir(".") if 'Geometr' in file and '.com' in file]
+    logs  = [file for file in os.listdir(".") if 'Geometr' in file and '.log' in file]
     prontos = []
     for file in logs:
         with open(file, 'r') as f:
@@ -438,8 +438,8 @@ def batch(gauss):
 
 ##CHECKS PROGRESS##############################################
 def andamento():
-    coms = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.com' in file]
-    logs = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.log' in file]
+    coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
+    logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
     factor = 1
     with open('Geomtries/'+coms[0], 'r') as f:
         for line in f:
@@ -457,7 +457,7 @@ def andamento():
 
 ##FETCHES LOG FILE#############################################
 def busca_log(frase):                   
-    files = [file for file in os.listdir('.') if ".log" in file and "Geometry-" not in file]
+    files = [file for file in os.listdir('.') if ".log" in file]
     if len(files) == 0:
         fatal_error("No frequency log found. Goodbye!")
     freqlog = 'nada0022'    
@@ -472,6 +472,17 @@ def busca_log(frase):
     return freqlog  
 ###############################################################    
 
+##FINDS SUITABLE VALUE FOR STD#################################    
+def detect_sigma():
+    try:
+        files = [i for i in os.listdir('.') if 'Magnitudes' in i and '.lx' in i]
+        file  = files[0]
+        temp = float(file.split('_')[1].strip('K'))
+        sigma =  np.round(kb*temp,3)
+    except:
+        sigma = 0.000
+    return sigma
+###############################################################    
 
 
 print("#                       #     #")
@@ -547,7 +558,10 @@ if op == '1':
         fatal_error("Have you heard about absolute zero? Goodbye!")
     sample_geom(freqlog, num_geoms, T, header, bottom)    
 elif op == '3':
-    opc = input("What is the standard deviation of the gaussians? Should be typically around kT.\n")
+    opc = detect_sigma()
+    opc2 = input("Standard deviation of the gaussians: "+str(opc)+" eV. Press Enter, if ok. Otherwise, type value.\n")
+    if opc2 != "":
+        opc = opc2
     try:
         opc = float(opc)
     except: 
