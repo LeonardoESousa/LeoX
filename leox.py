@@ -18,6 +18,13 @@ amu = 1.660539040e-27        #kg
 pi = np.pi
 ###############################################################
 
+
+##ERROR FUNCTION###############################################
+def fatal_error(msg):
+    print(msg)
+    sys.exit()
+###############################################################
+
 ##GETS FREQUENCIES AND REDUCED MASSES##########################
 def pega_freq(freqlog):
     F, M = [], []
@@ -38,8 +45,7 @@ def pega_freq(freqlog):
     try:
         f = F[0]
     except:
-        print("No frequencies in the log file! Goodbye!") 
-        sys.exit()
+        fatal_error("No frequencies in the log file! Goodbye!")
     #conversion from amu to kg
     M = np.asarray(M)*amu
     return F, M
@@ -82,8 +88,7 @@ def pega_geom(freqlog):
     try:
         G = G[1:,:]                 
     except:
-        print("No geometry in the log file! Goodbye!")
-        sys.exit()
+        fatal_error("No geometry in the log file! Goodbye!")
     return G, atomos
 ###############################################################
 
@@ -202,8 +207,7 @@ def shake(freqlog, T):
     A2 = np.zeros((3*num_atom,1))
     F = F[F < 0]
     if len(F) == 0:
-        print("No imaginary frquencies in the log file. Goodbye!")
-        sys.exit()
+        fatal_error("No imaginary frquencies in the log file. Goodbye!")
     F = -1*F
     for i in range(len(F)): # LL:
         q = [-1*T,T]
@@ -229,8 +233,7 @@ def shake(freqlog, T):
 def sample_geom(freqlog, num_geoms, T, header, bottom):
     F, M = pega_freq(freqlog)
     if F[0] < 0:
-        print("Imaginary frequency! Goodbye!")
-        sys.exit()
+        fatal_error("Imaginary frequency! Goodbye!")
     try:
         os.mkdir('Geometries')
     except:
@@ -337,8 +340,7 @@ def spectra(tipo, num_ex, nr):
                 S.append(float(line[6]))
     coms = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
     if len(V) == 0 or len(O) == 0:
-        print("You need to run steps 1 and 2 first! Goodbye!")
-        sys.exit()
+        fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != len(coms)*max(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.asarray(V)
@@ -419,6 +421,7 @@ def batch(gauss):
             except:
                 call(['tsp', gauss, file])
 
+##CHECKS PROGRESS##############################################
 def andamento():
     coms = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.com' in file]
     logs = [file for file in os.listdir("Geometries") if 'Geometry-' in file and '.log' in file]
@@ -433,14 +436,15 @@ def andamento():
             for line in f:
                 if "Normal termination" in line:
                     count += 1
-    print("\n\nThere are", count, "completed calculations out of", len(coms), "inputs")                
+    print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
     print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")                
+###############################################################
 
+##FETCHES LOG FILE#############################################
 def busca_log(frase):                   
     files = [file for file in os.listdir('.') if ".log" in file and "Geometry-" not in file]
     if len(files) == 0:
-        print("No frequency log found. Goodbye!")
-        sys.exit()
+        fatal_error("No frequency log found. Goodbye!")
     freqlog = 'nada0022'    
     for file in files:
         print("\n"+file)
@@ -449,11 +453,12 @@ def busca_log(frase):
             freqlog = file
             break
     if freqlog == 'nada0022':
-        print("No frequency log found. Goodbye!")
-        sys.exit()
+        fatal_error("No frequency log found. Goodbye!")
     return freqlog  
-    
-    
+###############################################################    
+
+
+
 print("#                       #     #")
 print("#        ######   ####   #   # ")
 print("#        #       #    #   # #  ")
@@ -482,8 +487,7 @@ if op == '1':
     try:
         num_ex = int(num_ex)
     except:
-        print("This must be a number! Goodbye!")
-        sys.exit()
+        fatal_error("This must be a number! Goodbye!")
     print('%nproc='+nproc)    
     print('%mem='+mem)
     procmem = input('Are Nproc and Mem correct? y or n?\n')
@@ -505,8 +509,7 @@ if op == '1':
                 float(eps1)
                 float(eps2)
             except:
-                print("The constants must be numbers. Goodbye!")
-                sys.exit()
+                fatal_error("The constants must be numbers. Goodbye!")
             epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
         else:
             solv = "SOLVENT="+solv
@@ -523,37 +526,31 @@ if op == '1':
         header = "%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
         bottom ="\n\n"
     else:
-        print("It should be y or n. Goodbye!.")
-        sys.exit()
+        fatal_error("It should be y or n. Goodbye!")
     T = float(input("Temperature in Kelvin?\n")) #K
     if T <= 0:
-        print("Have you heard about absolute zero? Goodbye!")
-        sys.exit()
+        fatal_error("Have you heard about absolute zero? Goodbye!")
     sample_geom(freqlog, num_geoms, T, header, bottom)    
 elif op == '3':
     opc = input("What is the standard deviation of the gaussians? Should be typically around kT.\n")
     try:
         opc = float(opc)
     except: 
-        print("It must be a number. Goodbye!!")
-        sys.exit()  
+        fatal_error("It must be a number. Goodbye!")  
     print("What kind of spectrum?")
     tipo = input("Type abs (absorption) or emi (emission).\n")
     if tipo != 'abs' and tipo != 'emi':
-        print("It must be either one. Goodbye!")
-        sys.exit()
+        fatal_error("It must be either one. Goodbye!")
     estados = input("How many excited states?\n")
     try:
         estados = int(estados)
     except:
-        print("It must be an integer! Goodbye!")
-        sys.exit()  
+        fatal_error("It must be an integer! Goodbye!")
     nr = input("What is the refractive index?\n")
     try:
         nr = float(nr)
     except:
-        print("It must be a number. Goodbye!")
-        sys.exit()
+        fatal_error("It must be a number. Goodbye!")
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
     gather_data(opc, tipo)
@@ -561,8 +558,7 @@ elif op == '3':
 elif op == '2':
     op = input("O ts está pronto já? s ou n?\n")
     if op != 's':
-        print("Então vá aprontar o ts, animal!")
-        sys.exit()
+        fatal_error("Então vá aprontar o ts, animal!")
     gaussian = input("Which Gaussian? g09 ou g16?\n")
     batch(gaussian) 
 elif op == '4':
@@ -572,8 +568,7 @@ elif op == '5':
     T = float(input("Magnitude of the displacement in Å? \n")) #K
     shake(freqlog,T)
 else:
-    print("It must be one of the options... Goodbye!")
-    sys.exit()
+    fatal_error("It must be one of the options... Goodbye!")
 
 
     
