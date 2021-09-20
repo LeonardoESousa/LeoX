@@ -5,17 +5,20 @@ import random
 import sys
 from decimal import Decimal
 
-epsilon0 = 8.854187817*10**(-12) #F/m
-hbar = 6.582119514*10**(-16) #eV s
-hbar2 = 1.054571800*10**(-34) #J s
-mass = 9.10938356*10**(-31) # kg
-c = 299792458 #m/s
-e = 1.60217662*10**(-19) #C
+
+##SOME CONSTANTS##############################################
+epsilon0 = 8.854187817e-12   #F/m
+hbar = 6.582119514e-16       #eV s
+hbar2 = 1.054571800e-34      #J s
+mass = 9.10938356e-31        #kg
+c = 299792458                #m/s
+e = 1.60217662e-19           #C
+kb = 8.6173303e-5            #eV/K
+amu = 1.660539040e-27        #kg
 pi = np.pi
-kb = 8.6173303*(10**(-5)) #eV/K
-amu = 1.660539040*10**(-27) #kg
+###############################################################
 
-
+##GETS FREQUENCIES AND REDUCED MASSES##########################
 def pega_freq(freqlog):
     F, M = [], []
     with open(freqlog, 'r') as f:
@@ -30,16 +33,19 @@ def pega_freq(freqlog):
                 line = line.split()
                 for j in range(3,len(line)):
                     M.append(float(line[j]))
-    
-    F = np.array(F)*(c*100*2*pi) #converte em frequencia angular
+    #conversion in angular frequency
+    F = np.array(F)*(c*100*2*pi) 
     try:
         f = F[0]
     except:
-        print("No frequencies in the log! Goodbye!") 
+        print("No frequencies in the log file! Goodbye!") 
         sys.exit()
-    M = np.asarray(M)*amu # converte amu em kg
+    #conversion from amu to kg
+    M = np.asarray(M)*amu
     return F, M
+###############################################################
 
+##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
 def pega_geom(freqlog):
     if ".log" in freqlog:
         status = 0
@@ -79,35 +85,19 @@ def pega_geom(freqlog):
         print("No geometry in the log file! Goodbye!")
         sys.exit()
     return G, atomos
+###############################################################
 
+##SAVES OPT GEOMETRY###########################################
 def salva_geom(G,atomos):
     atomos = np.array([atomos]).astype(float)
     atomos = atomos.T
     G = np.hstack((atomos,G))
     np.savetxt('opt_geom.txt', G, delimiter='\t', fmt=['%1.1u','%+1.5f','%+1.5f','%+1.5f'])
     print("The optimized geometry that is used is saved in the opt_geom.txt file!")
+###############################################################
 
-
-def pega_massas(freqlog,G):
-    _ , M = pega_freq(freqlog)
-    num_atom = np.shape(G)[0]
-    massas = []
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if "has atomic number" in line:
-                line = line.split()
-                massas.append(float(line[-1]))
-                massas.append(float(line[-1]))
-                massas.append(float(line[-1]))
-    massas = np.expand_dims(np.asarray(massas),axis=1)
-    atomos = np.zeros((3*num_atom,1))
-    for _ in range(0,len(M)):
-        atomos = np.hstack((atomos,massas))
-    massas = atomos[:,1:]
-    return massas*amu
 
 def pega_modosHP(G, freqlog):
-    #massas = pega_massas(freqlog,G)
     F, M = pega_freq(freqlog)
     n = -1
     num_atom = np.shape(G)[0]
@@ -140,7 +130,6 @@ def pega_modosHP(G, freqlog):
     return NC
 
 def pega_modosLP(G,freqlog):
-    #massas = pega_massas(freqlog,G)
     F, M = pega_freq(freqlog)
     C = []
     n = -1
@@ -298,10 +287,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
     #plt.show()
             
 
-def gather_data(G, freqlog, opc, tipo):
-    F, M = pega_freq(freqlog)
-    NNC = pega_modos(G,freqlog)
-    massas = pega_massas(freqlog,G)
+def gather_data(opc, tipo):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometry-" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     with open("Samples.lx", 'w') as f:
@@ -433,7 +419,7 @@ def busca_input(freqlog):
 
 def batch(gauss):
     files = [file for file in os.listdir(".") if 'Geometry-' in file and '.com' in file]
-    logs = [file for file in os.listdir(".") if 'Geometry-' in file and '.log' in file]
+    logs  = [file for file in os.listdir(".") if 'Geometry-' in file and '.log' in file]
     prontos = []
     for file in logs:
         with open(file, 'r') as f:
@@ -486,7 +472,7 @@ print("#        #       #    #  #   # ")
 print("#######  ######   ####  #     #")
 print("----SPECTRA FOR THE PEOPLE!----\n")
 print("Your options:\n")
-print("I have run frequency calculations. I want to generate the inputs for the spectrum calculation - type 1")
+print("I have frequency calculations done. I want to generate the inputs for the spectrum calculation - type 1")
 print("My inputs are set, I want to run the spectrum calculations - type 2")
 print("Calculations are done, I want to generate the spectrum - type 3")
 print("I want to check the progess of the calculations - type 4")
@@ -496,7 +482,7 @@ if op == '1':
     freqlog = busca_log("Is this the log file for the frequency calculation?")
     base, temtd, nproc, mem = busca_input(freqlog)
     print("\n"+base)
-    resp = input("Are basis and functional correct? If so, pres Enter. Otherwise, type (functional/basis).\n")
+    resp = input("Are basis and functional correct? If so, pres Enter. Otherwise, type functional/basis.\n")
     if resp != "":
         base = resp 
     adicional = input("If there are extra keywords, type them. Otherwise, press Enter.\n")
@@ -509,7 +495,7 @@ if op == '1':
         sys.exit()
     print('%nproc='+nproc)    
     print('%mem='+mem)
-    procmem = input('Are Nproc and Mem correct? y or n?\n  ')
+    procmem = input('Are Nproc and Mem correct? y or n?\n')
     if procmem.lower() != 'y':
         nproc = input('nproc?\n')
         mem = input("mem?\n")
@@ -560,10 +546,8 @@ elif op == '3':
     except: 
         print("It must be a number. Goodbye!!")
         sys.exit()  
-    freqlog = busca_log("É esse o log de frequência?")
-    G, atm = pega_geom(freqlog)
     print("What kind of spectrum?")
-    tipo = input("Type abs (absorption) or emi (emission)\n")
+    tipo = input("Type abs (absorption) or emi (emission).\n")
     if tipo != 'abs' and tipo != 'emi':
         print("It must be either one. Goodbye!")
         sys.exit()
@@ -581,20 +565,20 @@ elif op == '3':
         sys.exit()
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
-    gather_data(G,freqlog, opc, tipo)
+    gather_data(opc, tipo)
     spectra(tipo, num_ex, nr)
 elif op == '2':
     op = input("O ts está pronto já? s ou n?\n")
     if op != 's':
         print("Então vá aprontar o ts, animal!")
         sys.exit()
-    gaussian = input("Which gaussian? g09 ou g16?\n")
+    gaussian = input("Which Gaussian? g09 ou g16?\n")
     batch(gaussian) 
 elif op == '4':
     andamento()
 elif op == '5':
-    freqlog = busca_log("É esse o log de frequência?")
-    T = float(input("Magnitude of the displacement in Ångstrom? \n")) #K
+    freqlog = busca_log("Is this the frequency calculation log file?")
+    T = float(input("Magnitude of the displacement in Å? \n")) #K
     shake(freqlog,T)
 else:
     print("It must be one of the options... Goodbye!")
