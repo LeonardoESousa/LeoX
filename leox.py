@@ -3,7 +3,6 @@ import numpy as np
 import os
 import random
 import sys
-from decimal import Decimal
 
 
 ##SOME CONSTANTS##############################################
@@ -97,8 +96,8 @@ def salva_geom(G,atomos):
     atomos = np.array([atomos]).astype(float)
     atomos = atomos.T
     G = np.hstack((atomos,G))
-    np.savetxt('opt_geom.txt', G, delimiter='\t', fmt=['%1.1u','%+1.5f','%+1.5f','%+1.5f'])
-    print("The optimized geometry that is used is saved in the opt_geom.txt file!")
+    np.savetxt('opt_geom.lx', G, delimiter='\t', fmt=['%1.1u','%+1.5f','%+1.5f','%+1.5f'])
+    print("The optimized geometry that is used is saved in the opt_geom.lx file!")
 ###############################################################
 
 ##GETS NORMAL COORDINATES IN HIGH PRECISION####################
@@ -217,7 +216,7 @@ def shake(freqlog, T):
     A2 = np.reshape(A2,(num_atom,3))
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
-    with open("shaken.xyz", 'w') as f:
+    with open("shaken.lx", 'w') as f:
         f.write('#Geometry with displacement of '+str(T)+" A:\n" )
         for k in range(0, np.shape(Gfinal)[0]):
             text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
@@ -226,7 +225,7 @@ def shake(freqlog, T):
         for k in range(0, np.shape(Gfinal2)[0]):
             text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal2[k,0],Gfinal2[k,1],Gfinal2[k,2])
             f.write(text+"\n")
-    print("There are 2 geometries saved on shaken.xyz!")
+    print("There are 2 geometries saved on shaken.lx!")
 ###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
@@ -283,7 +282,7 @@ def gather_data(opc, tipo):
             f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Vibronic Shift (eV) Broadening Factor (eV) \n")
             numeros, energies, fs, scfs = [], [], [], []
             corrected, total_corrected = -1, -1
-            with open(file, 'r') as g:
+            with open('Geometries/'+file, 'r') as g:
                 for line in g: 
                     if "Excited State" in line:
                         line = line.split()
@@ -351,24 +350,28 @@ def spectra(tipo, num_ex, nr):
         espectro = (constante*O)
     else:
         espectro = (constante*(V**2)*O)
-    x = np.linspace(min(V)-3*max(np.sqrt(S)), max(V)+ 3*max(np.sqrt(S)), 200)
-    y = np.zeros((len(x),))
+    x  = np.linspace(min(V)-3*max(np.sqrt(S)), max(V)+ 3*max(np.sqrt(S)), 200)
+    y  = np.zeros((1,len(x)))
     if tipo == 'abs':
         arquivo = 'cross_section.lx'
-        primeira = "%4s %4s" % ("#Energy(ev)", "cross_section(A^2)\n")
-        for i in range(0,len(espectro)):
-            y = y + espectro[i]*gauss(x,V[i]+D[i],S[i])
+        primeira = "{:4s} {:4s} {:4s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
     else:
         arquivo = 'differential_rate.lx'
-        primeira = "%4s %4s" % ("#Energy(ev)", "diff_rate\n")
-        for i in range(0,len(espectro)):
-            y = y + espectro[i]*gauss(x,V[i]+D[i],S[i])
+        primeira = "{:4s} {:4s} {:4s}\n".format("#Energy(ev)", "diff_rate", "error")
+    for i in range(0,len(espectro)):
+        contribution = espectro[i]*gauss(x,V[i]+D[i],S[i])
+        y  = np.vstack((y,contribution[np.newaxis,:]))
+
+    y = y[1:,:]
+    mean_y = np.mean(y,axis=0)
+    #Error estimate
+    sigma = np.std(y - mean_y,axis=0,ddof=1)/np.sqrt(len(mean_y))
+    
     print(N, "geometries considered.")     
-    y = y/float(N)
     with open(arquivo, 'w') as f:
         f.write(primeira)
         for i in range(0,len(x)):
-            text = "%4.6f %8.6E\n" % (x[i], Decimal(y[i]))
+            text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
             f.write(text)
 
 def busca_input(freqlog):
@@ -516,7 +519,7 @@ if op == '1':
             epss = "\n"
         if temtd:
             print("Inputs suitable for emission spectra!\n")
-            header = "%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES=3) SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
+            header = "%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES="+str(num_ex)+") SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
             bottom = epss+"\n--Link1--\n%nproc="+nproc+"\n%mem="+mem+"\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,"+solv+")\n\nTITLE\n\n0 1\n\n"+epss
         else:
             print("Inputs suitable for absortion spectra!!\n")
