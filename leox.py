@@ -249,7 +249,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
     print("\nGenerating geometries...\n")
-    with open('Magnitudes_'+str(T)+'K_.lx', 'a') as file:
+    with open('Magnitudes_{:.0f}K_.lx'.format(T), 'a') as file:
         for n in range(1,num_geoms+1):
             A = np.zeros((3*num_atom,1))
             numbers = []
@@ -350,7 +350,7 @@ def spectra(tipo, num_ex, nr):
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
-    elif len(V) != len(coms)*max(num_ex):
+    elif len(V) != coms*max(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.asarray(V)
     O = np.asarray(O)
@@ -373,9 +373,9 @@ def spectra(tipo, num_ex, nr):
         y  = np.vstack((y,contribution[np.newaxis,:]))
 
     y = y[1:,:]
-    mean_y = np.mean(y,axis=0)
+    mean_y =   np.sum(y,axis=0)/N   #np.mean(y,axis=0)
     #Error estimate
-    sigma = np.std(y - mean_y,axis=0,ddof=1)/np.sqrt(len(mean_y))
+    sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1)))  #np.std(y,axis=0,ddof=1)/np.sqrt(len(mean_y))
     
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
@@ -420,28 +420,12 @@ def busca_input(freqlog):
             base += ' '+elem
     return base, exc, nproc, mem                
 
-def batch(gauss):
-    files = [file for file in os.listdir(".") if 'Geometr' in file and '.com' in file]
-    logs  = [file for file in os.listdir(".") if 'Geometr' in file and '.log' in file]
-    prontos = []
-    for file in logs:
-        with open(file, 'r') as f:
-            for line in f:
-                if "Normal termination" in line:
-                    prontos.append(file.split("-")[1])
-    for file in sorted(files, key=lambda file: float(file.split("-")[1])):
-        if file.split("-")[1] not in prontos:
-            try:
-                call(['ts', gauss, file])
-            except:
-                call(['tsp', gauss, file])
-
 ##CHECKS PROGRESS##############################################
 def andamento():
     coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
     logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
     factor = 1
-    with open('Geomtries/'+coms[0], 'r') as f:
+    with open('Geometries/'+coms[0], 'r') as f:
         for line in f:
             if 'Link1' in line:
                 factor = 2
@@ -472,6 +456,32 @@ def busca_log(frase):
     return freqlog  
 ###############################################################    
 
+##FETCHES BATCH#############################################
+def busca_sh(frase):                   
+    files = [file for file in os.listdir('.') if ".sh" in file]
+    if len(files) == 0:
+        fatal_error("No script found. Goodbye!")
+    freqlog = 'nada0022'    
+    for file in files:
+        print("\n"+file)
+        resp = input(frase+" y ou n?\n")
+        if resp.lower() == 'y':
+            freqlog = file
+            break
+    if freqlog == 'nada0022':
+        fatal_error("No script found. Goodbye!")
+    return freqlog  
+###############################################################    
+
+##RUNS TASK MANAGER############################################
+def batch(script,limite):
+    import subprocess
+    folder = os.path.dirname(os.path.realpath(__file__)) 
+    with open('limit.lx','w') as f:
+        f.write(str(limite))
+    subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, '&'])
+###############################################################
+
 ##FINDS SUITABLE VALUE FOR STD#################################    
 def detect_sigma():
     try:
@@ -484,6 +494,32 @@ def detect_sigma():
     return sigma
 ###############################################################    
 
+def get_spec():
+    coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
+    with open('Geometries/'+coms[0],'r') as f:
+        for line in f:
+            if 'ABSSPCT' in line:
+                tipo = 'absorption'
+                break
+            elif 'EMISPCT' in line:
+                tipo = 'emission'
+                break
+    return tipo       
+
+
+def get_nr():
+    logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
+    for log in logs:
+        with open('Geometries/'+log,'r') as f:
+            for line in f:
+                if 'Solvent' in line and 'Eps' in line:
+                    line = line.split()
+                    nr = np.sqrt(float(line[6]))
+                    return nr
+    return 1                
+
+
+
 
 print("#                       #     #")
 print("#        ######   ####   #   # ")
@@ -494,7 +530,7 @@ print("#        #       #    #  #   # ")
 print("#######  ######   ####  #     #")
 print("----SPECTRA FOR THE PEOPLE!----\n")
 print("Your options:\n")
-print("I have frequency calculations done. I want to generate the inputs for the spectrum calculation - type 1")
+print("I have frequency calculations ready. I want to generate the inputs for the spectrum calculation - type 1")
 print("My inputs are set, I want to run the spectrum calculations - type 2")
 print("Calculations are done, I want to generate the spectrum - type 3")
 print("I want to check the progess of the calculations - type 4")
@@ -503,6 +539,10 @@ op = input()
 if op == '1':
     freqlog = busca_log("Is this the log file for the frequency calculation?")
     base, temtd, nproc, mem = busca_input(freqlog)
+    if temtd:
+        spec = 'EMISPCT'
+    else:
+        spec = 'ABSSPCT'
     print("\n"+base)
     resp = input("Are basis and functional correct? If so, pres Enter. Otherwise, type functional/basis.\n")
     if resp != "":
@@ -541,55 +581,66 @@ if op == '1':
             solv = "SOLVENT="+solv
             epss = "\n"
         if temtd:
-            print("Inputs suitable for emission spectra!\n")
-            header = "%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES="+str(num_ex)+") SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
-            bottom = epss+"\n--Link1--\n%nproc="+nproc+"\n%mem="+mem+"\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,"+solv+")\n\nTITLE\n\n0 1\n\n"+epss
+            print("Inputs suitable for emission spectra!\n")    
+            header = "%chk=step_UUUUU.chk\n%nproc={:}\n%mem={:}\n# {:} {:}=(NSTATES={:}) SCRF=(CorrectedLR,NonEquilibrium=Save,{:})\n\n{:}\n\n0 1\n".format(nproc,mem,base,tda,num_ex,solv,spec) #"%chk=step_UUUUU.chk\n%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" "+tda+"=(NSTATES="+str(num_ex)+") SCRF=(CorrectedLR,NonEquilibrium=Save,"+solv+")\n\nTITLE\n\n0 1\n"
+            bottom = "{:}\n--Link1--\n%nproc={:}\n%mem={:}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {:} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{:})\n\nTITLE\n\n0 1\n\n{:}".format(epss,nproc,mem,base,solv,epss) #epss+"\n--Link1--\n%nproc="+nproc+"\n%mem="+mem+"\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# "+base+" GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,"+solv+")\n\nTITLE\n\n0 1\n\n"+epss
         else:
             print("Inputs suitable for absortion spectra!!\n")
-            header = "%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=3)\n\nTITLE\n\n0 1\n"
+            header = "%nproc={:}\n%mem={:}\n# {:} SCRF=(CorrectedLR,{:}) {:}=(NSTATES={:})\n\n{:}\n\n0 1\n".format(nproc,mem,base,solv,tda,num_ex,spec)#"%nproc="+nproc+"\n%mem="+mem+"\n# "+base+" SCRF=(CorrectedLR,"+solv+") "+tda+"=(NSTATES=3)\n\nTITLE\n\n0 1\n"
             bottom = epss
     elif pcm == 'n':
-        header = "%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
+        header = "%nproc={:}\n%Mem={:}\n# {:}=(NStates={:}) {:} \n\n{:}\n\n0 1\n".format(nproc,mem,tda,num_ex,base,spec) #"%nproc="+nproc+"\n%Mem="+mem+"\n# "+tda+"=(NStates="+str(num_ex)+") "+base+" \n\nTITLE\n\n0 1\n"
         bottom ="\n\n"
     else:
         fatal_error("It should be y or n. Goodbye!")
-    T = float(input("Temperature in Kelvin?\n")) #K
+    T = float(input("Temperature in Kelvin?\n"))
     if T <= 0:
         fatal_error("Have you heard about absolute zero? Goodbye!")
     sample_geom(freqlog, num_geoms, T, header, bottom)    
 elif op == '3':
     opc = detect_sigma()
-    opc2 = input("Standard deviation of the gaussians: "+str(opc)+" eV. Press Enter, if ok. Otherwise, type value.\n")
-    if opc2 != "":
-        opc = opc2
-    try:
-        opc = float(opc)
-    except: 
-        fatal_error("It must be a number. Goodbye!")  
-    print("What kind of spectrum?")
-    tipo = input("Type abs (absorption) or emi (emission).\n")
-    if tipo != 'abs' and tipo != 'emi':
-        fatal_error("It must be either one. Goodbye!")
-    estados = input("How many excited states?\n")
-    try:
-        estados = int(estados)
-    except:
-        fatal_error("It must be an integer! Goodbye!")
-    nr = input("What is the refractive index?\n")
-    try:
-        nr = float(nr)
-    except:
-        fatal_error("It must be a number. Goodbye!")
+    tipo = get_spec()
+    nr = get_nr() 
+    print('The spectrum will be run with the following parameters:\n')
+    print('Spectrum type: {:}\n'.format(tipo.title()))
+    print('Standard deviation of: {:.3f} eV\n'.format(opc))
+    print('Refractive index: {:.3f}\n'.format(nr))
+    change = input('Are you satisfied with these parameters? y or n?\n')
+    if change.lower() == n:
+        opc2 = input("Standard deviation of the gaussians: "+str(opc)+" eV. Press Enter, if ok. Otherwise, type value.\n")
+        if opc2 != "":
+            opc = opc2
+        try:
+            opc = float(opc)
+        except: 
+            fatal_error("It must be a number. Goodbye!")  
+        tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
+        if tipo != 'abs' and tipo != 'emi':
+            fatal_error('It must be either one. Goodbye!')
+    else:
+        if tipo == 'abs':
+            estados = input("How many excited states?\n")
+            try:
+                estados = int(estados)
+            except:
+                fatal_error("It must be an integer! Goodbye!")
+        else:
+            estados = 1
     num_ex = range(0,estados+1)
     num_ex = list(map(int,num_ex))
     gather_data(opc, tipo)
     spectra(tipo, num_ex, nr)
 elif op == '2':
-    op = input("O ts está pronto já? s ou n?\n")
-    if op != 's':
-        fatal_error("Então vá aprontar o ts, animal!")
-    gaussian = input("Which Gaussian? g09 ou g16?\n")
-    batch(gaussian) 
+    op = input("Is your batch script ready? y or n?\n")
+    if op == 'n':
+        fatal_error("Set it up then! Goodbye!")
+    op = busca_sh('Is this the batch script?')    
+    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    try:
+        limite = float(limite)
+    except:
+        fatal_error("It must be an integer. Goodbye!")    
+    batch(op,limite) 
 elif op == '4':
     andamento()
 elif op == '5':
