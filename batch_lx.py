@@ -30,6 +30,10 @@ def watcher(rodando,counter):
                         term += 1
                         if counter == 2:
                             delchk(input,term)
+                    elif 'Error termination' in line:
+                        print('The following job returned an error: {}'.format(input))
+                        print('Please check the file for any syntax errors. Aborting the execution.')
+                        sys.exit()        
             if term == counter:
                 done.append(input)
         except:
