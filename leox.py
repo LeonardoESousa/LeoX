@@ -307,10 +307,10 @@ def gather_data(opc, tipo):
                 if len(numeros) > 0:
                     f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) \n")
                 if corrected != -1 and tipo == 'abs': #abspcm
-                    f.write("Excited State 1:\t{}\t{}\t{}\n".format(corrected, fs[0], broadening))
+                    f.write("Excited State {}:\t{}\t{}\t{}\n".format(numeros[0],corrected, fs[0], broadening))
                 elif corrected != -1 and tipo == 'emi': #emipcm     
-                    energy = str(np.round(total_corrected - scfs[-1],3))
-                    f.write("Excited State 1:\t{}\t{}\t{}\n".format(energy,fs[0],broadening))
+                    energy = total_corrected - scfs[-1]
+                    f.write("Excited State {}:\t{:.3f}\t{}\t{}\n".format(numeros[0],energy,fs[0],broadening))
                 elif corrected == -1 and tipo == 'emi':
                     f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],energies[0],fs[0],broadening))
                 else:
@@ -383,10 +383,11 @@ def spectra(tipo, num_ex, nr):
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
     base = 'lalala'
-    exc = False
+    exc = ''
     header = ''
     nproc = '4'
     mem   = '1GB'
+    scrf  = ''
     with open(freqlog, 'r') as f:
         search = False
         for line in f:
@@ -404,8 +405,23 @@ def busca_input(freqlog):
             elif search and '----------' in line:
                 search = False
                 break
-    if 'TD' in header.upper():
-        exc = True
+  
+    if 'TDA' in header.upper():
+        exc = 'tda'
+        spec = 'EMISPCT'
+    elif 'TD' in header.upper():
+        exc = 'td'
+        spec = 'EMISPCT'
+    else:
+        spec = 'ABSSPCT'
+
+    if 'SCRF' in header.upper():
+        new = header.split()
+        for elem in new:
+            if 'SCRF' in elem:
+                scrf = elem
+                break     
+        
     header = header.split()
     base = ''
     for elem in header:
@@ -413,7 +429,7 @@ def busca_input(freqlog):
             base += elem.replace('#','')
         elif 'IOP' in elem.upper() and ('108' in elem or '107' in elem):
             base += ' '+elem
-    return base, exc, nproc, mem                
+    return base, exc, nproc, mem, scrf, spec                
 ###############################################################
 
 ##CHECKS PROGRESS##############################################
@@ -536,6 +552,29 @@ def get_cm(freqlog):
                 break
     return charge+' '+mult
 
+def default(a,frase):
+    b = input(frase)
+    if b == '':
+        return a
+    else:
+        return b    
+
+
+def set_eps(scrf):
+    if 'READ' in scrf.upper():
+        eps1 = input("Type the static dielectric constant.\n")
+        eps2 = input("Type the dynamic dielectric constant (n^2).\n")
+        try:
+            float(eps1)
+            float(eps2)
+        except:
+            fatal_error("The constants must be numbers. Goodbye!")
+        epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
+    else:
+        epss = '\n'
+    return epss
+
+
 print("#                       #     #")
 print("#        ######   ####   #   # ")
 print("#        #       #    #   # #  ")
@@ -554,59 +593,55 @@ op = input()
 if op == '1':
     freqlog = busca_log("Is this the log file for the frequency calculation?")
     cm = get_cm(freqlog)
-    base, temtd, nproc, mem = busca_input(freqlog)
-    if temtd:
-        spec = 'EMISPCT'
+    base, temtd, nproc, mem, scrf, spec = busca_input(freqlog)
+    if temtd == '':
+        tda = 'TD'
     else:
-        spec = 'ABSSPCT'
-    print("\n"+base)
-    resp = input("Are basis and functional correct? If so, press Enter. Otherwise, type functional/basis.\n")
-    if resp != "":
-        base = resp 
-    adicional = input("If there are extra keywords, type them. Otherwise, press Enter.\n")
-    base += " "+adicional
+        tda = temtd.upper()
+    print('\nThe suggested configurations for you are:\n')
+    print('Functional/basis: {}'.format(base))
+    print('Solvent Method: {}'.format(scrf))
+    print('Charge and Multiplicity: {}'.format(cm))
+    print('Calculation method: {}-DFT'.format(tda))
+    print('%nproc='+nproc)    
+    print('%mem='+mem)
+    change = input('Are you satisfied with these parameters? y or n?\n')
+    if change.lower() == 'n':     
+        base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
+        scrf  = default(scrf,"SCRF keyword is {}. If ok, Enter. Otherwise, type the desired one.\n".format(scrf) )
+        cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
+        nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
+        mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
+        tamm  = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
+        if tamm.lower() == 'y':
+            tda = 'TDA'
+        else:
+            tda = 'TD'
+        
     num_ex = input("How many excited states?\n")
     try:
         num_ex = int(num_ex)
     except:
         fatal_error("This must be a number! Goodbye!")
-    print('%nproc='+nproc)    
-    print('%mem='+mem)
-    procmem = input('Are Nproc and Mem correct? y or n?\n')
-    if procmem.lower() != 'y':
-        nproc = input('nproc?\n')
-        mem   = input("mem?\n")
     num_geoms = int(input("How many geometries to be sampled?\n"))
-    tda = 'TD'
-    tamm = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
-    if tamm.lower() == 's':
-        tda = 'TDA'
     pcm = input("Include state specific solvent approach? y or n?\n")
     if pcm.lower() == 'y':
-        solv = input("What is the  solvent? If you want to specify the dielectric constants yourself, type read.\n")
-        if solv.lower() == "read":
-            eps1 = input("Type the static dielectric constant.\n")
-            eps2 = input("Type the dynamic dielectric constant (n^2).\n")
-            try:
-                float(eps1)
-                float(eps2)
-            except:
-                fatal_error("The constants must be numbers. Goodbye!")
-            epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
-        else:
+        solv = input("What is the solvent? If you want to specify the dielectric constants yourself, type read.\n")
+        epss = set_eps(solv)
+        if epss == '\n':
             solv = "SOLVENT="+solv
-            epss = "\n"
         if temtd:
             print("Inputs suitable for emission spectra!\n")    
-            header = "%chk=step_UUUUU.chk\n%nproc={:}\n%mem={:}\n# {:} {:}=(NSTATES={:}) SCRF=(CorrectedLR,NonEquilibrium=Save,{:})\n\n{:}\n\n{:}}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
-            bottom = "{:}\n--Link1--\n%nproc={:}\n%mem={:}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {:} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{:})\n\nTITLE\n\n{:}}\n\n{:}".format(epss,nproc,mem,base,solv,cm,epss) 
+            header = "%chk=step_UUUUU.chk\n%nproc={}\n%mem={}\n# {} {}=(NSTATES={}) SCRF=(CorrectedLR,NonEquilibrium=Save,{})\n\n{}\n\n{}}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
+            bottom = "{}\n--Link1--\n%nproc={}\n%mem={}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{})\n\nTITLE\n\n{}}\n\n{}".format(epss,nproc,mem,base,solv,cm,epss) 
         else:
             print("Inputs suitable for absortion spectra!!\n")
-            header = "%nproc={:}\n%mem={:}\n# {:} SCRF=(CorrectedLR,{:}) {:}=(NSTATES={:})\n\n{:}\n\n{:}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
+            header = "%nproc={}\n%mem={}\n# {} SCRF=(CorrectedLR,{}) {}=(NSTATES={})\n\n{}\n\n{}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
             bottom = epss
     elif pcm == 'n':
-        header = "%nproc={:}\n%Mem={:}\n# {:}=(NStates={:}) {:} \n\n{:}\n\n{:}\n".format(nproc,mem,tda,num_ex,base,spec,cm)
-        bottom = '\n\n'
+        epss = set_eps(scrf)
+        header = "%nproc={}\n%Mem={}\n# {}=(NStates={}) {} {} \n\n{}\n\n{}\n".format(nproc,mem,tda,num_ex,base,scrf,spec,cm)
+        bottom = epss+'\n\n'
     else:
         fatal_error("It should be y or n. Goodbye!")
     T = float(input("Temperature in Kelvin?\n"))
@@ -618,7 +653,7 @@ elif op == '3':
     tipo = get_spec()
     nr = get_nr() 
     print('The spectrum will be run with the following parameters:\n')
-    print('Spectrum type: {:}'.format(tipo.title()))
+    print('Spectrum type: {}'.format(tipo.title()))
     print('Standard deviation of: {:.3f} eV'.format(opc))
     print('Refractive index: {:.3f}\n'.format(nr))
     change = input('Are you satisfied with these parameters? y or n?\n')
