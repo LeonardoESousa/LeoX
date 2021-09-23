@@ -80,7 +80,7 @@ try:
     for input in inputs:
         rodando = watcher(rodando,factor)
         nlim = limite()
-        a = subprocess.call(['bash',batch_file, inputs[i]])
+        a = subprocess.call(['bash',batch_file, input])
         rodando.append(input)
         while len(rodando) >= nlim:
             time.sleep(20)

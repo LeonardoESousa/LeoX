@@ -306,17 +306,17 @@ def gather_data(opc, tipo):
                         scfs.append(27.2114*float(line[4]))
                 if len(numeros) > 0:
                     f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) \n")
-                if corrected != -1 and tipo == 'abs': #abspcm
-                    f.write("Excited State {}:\t{}\t{}\t{}\n".format(numeros[0],corrected, fs[0], broadening))
-                elif corrected != -1 and tipo == 'emi': #emipcm     
-                    energy = total_corrected - scfs[-1]
-                    f.write("Excited State {}:\t{:.3f}\t{}\t{}\n".format(numeros[0],energy,fs[0],broadening))
-                elif corrected == -1 and tipo == 'emi':
-                    f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],energies[0],fs[0],broadening))
-                else:
-                    for i in range(len(energies)):
-                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[i],energies[i],fs[i],broadening))
-                f.write("\n")   
+                    if corrected != -1 and tipo == 'abs': #abspcm
+                        f.write("Excited State {}:\t{}\t{}\t{}\n".format(numeros[0],corrected, fs[0], broadening))
+                    elif corrected != -1 and tipo == 'emi': #emipcm     
+                        energy = total_corrected - scfs[-1]
+                        f.write("Excited State {}:\t{:.3f}\t{}\t{}\n".format(numeros[0],energy,fs[0],broadening))
+                    elif corrected == -1 and tipo == 'emi':
+                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],energies[0],fs[0],broadening))
+                    else:
+                        for i in range(len(energies)):
+                            f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[i],energies[i],fs[i],broadening))
+                    f.write("\n")   
 ############################################################### 
 
 
@@ -325,6 +325,18 @@ def gauss(x,v,s):
     y =  (1/(np.sqrt(2*np.pi)*s))*np.exp(-0.5*((x-v)/s)**2)
     return y
 ###############################################################
+
+
+##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
+def calc_tdm(O,V):
+    #Energy terms converted to J
+    term = e*(hbar**2)/V
+    dipoles = np.sqrt(3*term*O/(2*mass))
+    #Conversion in au
+    dipoles *= (1/0.529177)*1e10
+    return np.mean(dipoles)
+###############################################################
+
 
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
@@ -355,14 +367,15 @@ def spectra(tipo, num_ex, nr):
         espectro = (constante*O)
     else:
         espectro = (constante*(V**2)*O)
+        tdm = calc_tdm(O,V)
     x  = np.linspace(min(V)-3*max(S), max(V)+ 3*max(S), 200)
     y  = np.zeros((1,len(x)))
     if tipo == 'abs':
         arquivo = 'cross_section.lx'
-        primeira = "{:4s} {:4s} {:4s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
+        primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
     else:
         arquivo = 'differential_rate.lx'
-        primeira = "{:4s} {:4s} {:4s}\n".format("#Energy(ev)", "diff_rate", "error")
+        primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     for i in range(0,len(espectro)):
         contribution = espectro[i]*gauss(x,V[i],S[i])
         y  = np.vstack((y,contribution[np.newaxis,:]))
@@ -486,7 +499,14 @@ def busca_sh(frase):
 ###############################################################    
 
 ##RUNS TASK MANAGER############################################
-def batch(script,limite):
+def batch():
+    script = busca_sh('Is this the batch script?')    
+    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    try:
+        limite = float(limite)
+    except:
+        fatal_error("It must be an integer. Goodbye!")
+    
     import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
@@ -542,6 +562,7 @@ def get_nr():
         return 1                
 ###############################################################
 
+##FETCHES CHARGE AND MULTIPLICITY##############################
 def get_cm(freqlog):
     with open(freqlog,'r') as f:
         for line in f:
@@ -551,15 +572,18 @@ def get_cm(freqlog):
                 mult   = line[5]
                 break
     return charge+' '+mult
+###############################################################
 
+##QUERY FUNCTION###############################################
 def default(a,frase):
     b = input(frase)
     if b == '':
         return a
     else:
         return b    
+###############################################################
 
-
+##SETS DIELECTRIC CONSTANTS####################################
 def set_eps(scrf):
     if 'READ' in scrf.upper():
         eps1 = input("Type the static dielectric constant.\n")
@@ -573,6 +597,70 @@ def set_eps(scrf):
     else:
         epss = '\n'
     return epss
+###############################################################
+
+##STOP SUBMISSION OF JOBS######################################
+def abort_batch():
+    choice = input('Are you sure you want to prevent new jobs from being submitted? y or n\n?')
+    if choice == 'y':
+        try:
+            os.remove('limit.lx')
+            print('Done!')
+        except:
+            print('Could not find the files. Maybe you are in the wrong folder.')
+    else:
+        print('OK, nevermind')
+###############################################################
+
+def search_spectra():
+    Abs, Emi = 'None', 'None'
+    candidates = [i for i in os.listdir('.') if '.lx' in i]
+    for candidate in candidates:
+        with open(candidate, 'r') as f:
+            for line in f:
+                if 'cross_section' in line:
+                    Abs = candidate
+                elif 'diff_rate' in line:     
+                    Emi = candidate
+                break
+    return Abs, Emi
+
+def ld():
+    Abs, Emi = search_spectra()
+    print('Absorption file: {}'.format(Abs))
+    print('Emission file: {}'.format(Emi))
+    check = input('Are these correct? y or n?\n')
+    if check == 'n':
+        Abs = input('Type name of the absorption spectrum file\n')
+        Emi = input('Type name of the emission spectrum file\n')
+
+    kappa = input('Orientation Factor (k^2):\n')
+    rmin  = input("Average intermolecular distance in Å:\n")
+    Phi   = input("Fluorescence quantum yield:\n")
+    try:
+        rmin  = float(rmin)
+        kappa = np.sqrt(float(kappa))
+        Phi   = float(Phi) 
+    except:
+        fatal_error('These features must be numbers. Goodbye!')    
+    if Phi > 1 or Phi < 0:
+        fatal_error('Quantum yield must be between 0 and 1. Goodbye!')
+
+    correct = input('Include correction for short distances? y or n?\n')
+    if correct == 'y':
+        alpha = 1.15*0.53 
+        print('Employing correction!')
+    else:
+        alpha = 0
+        print('Not employing correction!')
+    
+    print('Computing...')
+    import ld 
+    try:
+        ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
+        print('Results can be found in the ld.lx file')
+    except:
+        print('Something went wrong. Check if the name of the files are correct.')        
 
 
 print("#                       #     #")
@@ -584,11 +672,13 @@ print("#        #       #    #  #   # ")
 print("#######  ######   ####  #     #")
 print("----SPECTRA FOR THE PEOPLE!----\n")
 print("Choose your option:\n")
-print("1 - I have frequency calculations ready. I want to generate the inputs for the spectrum calculation")
-print("2 - My inputs are set, I want to run the spectrum calculations")
-print("3 - Calculations are done, I want to generate the spectrum")
-print("4 - I want to check the progess of the calculations")
-print("5 - I want to shake a molecule to help me get rid of imaginary frequencies")
+print("1 - Generate the inputs for the spectrum calculation")
+print("2 - Run the spectrum calculations")
+print("3 - Generate the spectrum")
+print("4 - Check the progess of the calculations")
+print("5 - Estimate Förster radius, fluorescence lifetime and diffusion lengths")
+print("6 - Abort my spectrum calculations")
+print("7 - Shake a molecule to help me get rid of imaginary frequencies")
 op = input()
 if op == '1':
     freqlog = busca_log("Is this the log file for the frequency calculation?")
@@ -681,16 +771,14 @@ elif op == '3':
     gather_data(opc, tipo)
     spectra(tipo, num_ex, nr)
 elif op == '2':
-    op = busca_sh('Is this the batch script?')    
-    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
-    try:
-        limite = float(limite)
-    except:
-        fatal_error("It must be an integer. Goodbye!")    
-    batch(op,limite) 
+    batch() 
 elif op == '4':
     andamento()
 elif op == '5':
+    ld()
+elif op == '6':
+    abort_batch()
+elif op == '7':
     freqlog = busca_log("Is this the frequency calculation log file?")
     T = float(input("Magnitude of the displacement in Å? \n")) #K
     shake(freqlog,T)
