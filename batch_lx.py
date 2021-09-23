@@ -5,15 +5,31 @@ import numpy as np
 import sys
 import shutil
 
+##DELETES CHK FILES############################################
+def delchk(input,term):
+    num = input.split('-')[1]
+    if term == 1:
+        a = ''
+    elif term == 2:
+        a = '2'
+    try:        
+        os.remove('step{}_{}.chk'.format(a,num))
+    except:
+        pass      
+###############################################################        
+
+##CHECKS WHETHER JOBS ARE DONE#################################
 def watcher(rodando,counter):
     done = []
     for input in rodando: 
         term = 0
         try:
-            with open('Geometry-'+str(input)+'-.log', 'r') as f:
+            with open(input[:-3]+'log', 'r') as f:
                 for line in f:
                     if 'Normal termination' in line:
                         term += 1
+                        if counter == 2:
+                            delchk(input,term)
             if term == counter:
                 done.append(input)
         except:
@@ -21,19 +37,27 @@ def watcher(rodando,counter):
     for elem in done:
         del rodando[rodando.index(elem)]                                
     return rodando
+###############################################################
 
+##CHECKS WHETHER THE JOB IS TWO STEP###########################
 def set_factor(file):
     factor = 1
     with open(file, 'r') as f:
         for line in f:
             if 'Link1' in line:
                 factor = 2
+                break
     return factor
+###############################################################
 
+#SETS NUMBER OF SIMULTANEOUS JOBS##############################
 def limite():
     numero = np.loadtxt('../limit.lx')
     return numero
+###############################################################
 
+
+##MAIN LOOP####################################################
 try:
     batch_file = sys.argv[1]
     shutil.copy(batch_file,'Geometries')
@@ -45,7 +69,9 @@ try:
     factor = set_factor(inputs[0])
 
     inputs = watcher(inputs,factor)
-
+    if len(inputs) == 0:
+        print('No jobs left to run! Goodbye!')
+        sys.exit()
     rodando = []
     for i in range(len(inputs)):
         rodando = watcher(rodando,factor)
@@ -59,3 +85,4 @@ try:
 except:
     print('Something went wrong! Abort.')           
     sys.exit()
+###############################################################    
