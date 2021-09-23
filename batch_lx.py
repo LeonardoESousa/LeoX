@@ -77,16 +77,15 @@ try:
         print('No jobs left to run! Goodbye!')
         sys.exit()
     rodando = []
-    for i in range(len(inputs)):
+    for input in inputs:
         rodando = watcher(rodando,factor)
         nlim = limite()
         a = subprocess.call(['bash',batch_file, inputs[i]])
-        rodando.append(i)
+        rodando.append(input)
         while len(rodando) >= nlim:
             time.sleep(20)
             rodando = watcher(rodando,factor)
             nlim = limite()
 except:
     print('Something went wrong! Abort.')           
-    sys.exit()
 ###############################################################    
