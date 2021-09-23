@@ -64,7 +64,9 @@ def limite():
 ##MAIN LOOP####################################################
 try:
     batch_file = sys.argv[1]
-    shutil.copy(batch_file,'Geometries')
+    scripts = [i for i in os.listdir('.') if '.sh' in i]
+    for file in scripts:
+        shutil.copy(file,'Geometries')
 
     os.chdir('Geometries')
     inputs = [i for i in os.listdir('.') if 'Geometr' in i and '.com' in i]

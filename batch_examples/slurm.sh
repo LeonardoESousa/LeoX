@@ -1,0 +1,1 @@
+sbatch batch.sh $1
