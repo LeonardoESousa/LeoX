@@ -15,22 +15,14 @@ To obtain the estimates of Förster radius, fluorescence lifetimes and singlet e
 
 ## How to install?
 
-Clone the repository to any folder in your computer. In your terminal, navigate to the LeoX folder and run:
+Run:
 
-`pip install .`
-
-Now, open your .bashrc file and include the following:
-
-`export PYTHONPATH="${PYTHONPATH}:/path/to/folder/LeoX/"`
-
-In your terminal type:
-
-`source ~/.bashrc`
+`pip install LeoX`
 
 Now you can run the program from any folder by just using the `lx` command.
 
 ## How to use it?
 
-Create a folder for your project. Add the log file for the frequency calculation in your folder.
+Create a folder for your project. Add the log file for the frequency calculation in your folder. Run the lx command. Choose option 1 and follow the instructions.
 
 
