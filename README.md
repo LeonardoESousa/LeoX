@@ -2,7 +2,17 @@
 
 ## What does this program do?
 
-Absorption and Fluorescence spectrum simulations using TD(A)-DFT and the nuclear ensemble method coupled the Gaussian quantum chemistry package. 
+ - Absorption and Fluorescence spectrum simulations using TD(A)-DFT including vibrational contributions.
+ - Estimates Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths.
+
+  coupled to the Gaussian quantum chemistry package. 
+
+## What is necessary to use it?
+
+The program that the Gaussian quantum chemistry software (G09 or G16) be installed, as it interfaces with it.
+The first step for spectrum calculations is providing a Gaussian log file for a frequency calculation in the S0 state, if the goal is computing an absorption spectrum, or S1 state, if the objective is calculating a fluoresence spectrum. All frequencies must be real.  
+
+To obtain the estimates of Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and emission spectra calculations for the molecule of interest.
 
 ## How to install?
 
