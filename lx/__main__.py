@@ -655,7 +655,7 @@ def ld():
         print('Not employing correction!')
     
     print('Computing...')
-    import ld 
+    import lx.ld 
     try:
         ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')
@@ -723,8 +723,8 @@ def main():
                 solv = "SOLVENT="+solv
             if temtd:
                 print("Inputs suitable for emission spectra!\n")    
-                header = "%chk=step_UUUUU.chk\n%nproc={}\n%mem={}\n# {} {}=(NSTATES={}) SCRF=(CorrectedLR,NonEquilibrium=Save,{})\n\n{}\n\n{}}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
-                bottom = "{}\n--Link1--\n%nproc={}\n%mem={}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{})\n\nTITLE\n\n{}}\n\n{}".format(epss,nproc,mem,base,solv,cm,epss) 
+                header = "%chk=step_UUUUU.chk\n%nproc={}\n%mem={}\n# {} {}=(NSTATES={}) SCRF=(CorrectedLR,NonEquilibrium=Save,{})\n\n{}\n\n{}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
+                bottom = "{}\n--Link1--\n%nproc={}\n%mem={}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{})\n\nTITLE\n\n{}\n\n{}".format(epss,nproc,mem,base,solv,cm,epss) 
             else:
                 print("Inputs suitable for absortion spectra!!\n")
                 header = "%nproc={}\n%mem={}\n# {} SCRF=(CorrectedLR,{}) {}=(NSTATES={})\n\n{}\n\n{}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
