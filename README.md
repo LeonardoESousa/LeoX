@@ -5,8 +5,6 @@
  - Absorption and Fluorescence spectrum simulations using TD(A)-DFT including vibrational contributions.
  - Estimates Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths.
 
-  coupled to the Gaussian quantum chemistry package. 
-
 ## What is necessary to use it?
 
 The program that the Gaussian quantum chemistry software (G09 or G16) be installed, as it interfaces with it.
