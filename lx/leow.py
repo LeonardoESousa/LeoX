@@ -11,7 +11,7 @@ def write_input(atomos,G,header,file):
     with open(file, 'w') as f:
         f.write(header)
         for i in range(0,len(atomos)):
-            texto = "{:%2s}  {:%2.14f}  {:%2.14f}  {:%2.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
+            texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
             f.write(texto)
         f.write("\n")
 ###############################################################
@@ -60,33 +60,25 @@ def to_float(num):
 
 ##GETS HOMO ENERGY FROM LOG####################################
 def pega_homo(file):
-    #status = 0
     HOMOS = []
     with open(file, 'r') as f:
         for line in f:
-            if ('OPT' in file and "Optimized Parameters" in line) :#or 'pos' in file or 'neg' in file:
-                HOMOS = []  #status = 1
-            #if status == 1:
+            if ('OPT' in file and "Optimized Parameters" in line) :
+                HOMOS = [] 
             if "occ. eigenvalues" in line:
                 line = line.split()
                 homos = line[4:]
                 HOMOS.extend(homos)
-    #if len(HOMOS) == 0:
-    #    with open(file, 'r') as f:
-    #        for line in f:
-    #            if "occ. eigenvalues" in line:
-    #                line = line.split()
-    #                homos = line[4:]
-    #                HOMOS.extend(homos)
+    if len(HOMOS) == 0:
+        with open(file, 'r') as f:
+            for line in f:
+                if "occ. eigenvalues" in line:
+                    line = line.split()
+                    homos = line[4:]
+                    HOMOS.extend(homos)
     HOMOS = list(map(to_float,HOMOS))
-    #HOMOS2 = []
-    #for HOMO in HOMOS:
-    #    try:
-    #        HOMOS2.append(float(HOMO))
-    #    except:
-    #        pass
     return max(HOMOS)
-    ###########################################################
+###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def hold_watch(files):
@@ -101,8 +93,7 @@ def hold_watch(files):
 
 ##RUNS CALCULATIONS############################################
 def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file): 
-    omega = "{:05d}".format(omega)
-    #omega = str(omega)
+    omega = "{:05.0f}".format(omega)
     file = gera_optcom(atomos,G,base,nproc,mem,omega,op)
     subprocess.call(['bash', batch_file, file]) 
     hold_watch([file])
@@ -126,7 +117,7 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
         pass
     files = [i for i in os.listdir('.') if '.com' in i or '.log' in i]
     for file in files:
-        shutil.move(file, 'Logs'+file)
+        shutil.move(file, 'Logs/'+file)
     J = ((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2)*(27.2114**2)
     return J, G, atomos
 ###############################################################
@@ -134,10 +125,11 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
 ##WRITES LOG WITH RESULTS######################################
 def write_tolog(omegas,Js,frase):    
     with open("omega.lx", 'w') as f:
+        f.write('#{}    {}\n'.format('omega(1e4 bohr^-1)','J^2(eV^2)'))
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         for i in range(len(list1)):
-            f.write("{:05d}    {:.4e}\n".format(list1[i],list2[i])) 
-        f.write("\n{} {:05d}\n".format(frase,list1[list2.index(min(list2))])) 
+            f.write("{:05.0f}    {:.4e}\n".format(list1[i],list2[i])) 
+        f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
 ###############################################################
 
 geomlog = sys.argv[1]
@@ -170,7 +162,7 @@ try:
         for line in f:
             line = line.split()
             if len(line) == 2:
-                om = float(line[0]) #format(int(line[0]), '05')
+                om = float(line[0])
                 omegas.append(om)
                 Js.append(float(line[1]))
 except:
@@ -200,11 +192,10 @@ while passo > 50:
             except:
                 pass
             sign = +1*np.sign(int(oms[-1]) - int(oms[-2]))
-        omega1 += sign*passo #int(omega1) + sign*passo
-        #omega1 = format(int(omega1), '05')
+        omega1 += sign*passo 
+        
     except:
-        omega1 += passo  #int(omega1) + passo
-        #omega1 = format(int(omega1), '05')
+        omega1 += passo
     write_tolog(omegas,Js,'Best value so far:')
     
 

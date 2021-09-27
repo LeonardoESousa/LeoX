@@ -524,7 +524,7 @@ def omega_tuning():
         mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
         omega1 = default(omega1,"Initial omega is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(omega1))       
         passo  = default(passo,"Initial step is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(passo))       
-        relax  = default(relax,"Optimize at each step: yes. If ok, Enter. Otherwise, type n")
+        relax  = default(relax,"Optimize at each step: yes. If ok, Enter. Otherwise, type n\n")
     
     script = fetch_file('batch script',['.sh'])    
     import subprocess
@@ -651,6 +651,7 @@ def delchk(input,term):
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def watcher(rodando,counter):
     done = []
+    exit = False
     for input in rodando: 
         term = 0
         try:
@@ -663,18 +664,20 @@ def watcher(rodando,counter):
                     elif 'Error termination' in line:
                         print('The following job returned an error: {}'.format(input))
                         print('Please check the file for any syntax errors. Aborting the execution.')
-                        sys.exit()        
+                        exit = True        
             if term == counter:
                 done.append(input)
         except:
-            pass        
+            pass 
+    if exit:
+        sys.exit()
     for elem in done:
         del rodando[rodando.index(elem)]                                
     return rodando
 ###############################################################
 
 
-
+##GETS SPECTRA#################################################
 def search_spectra():
     Abs, Emi = 'None', 'None'
     candidates = [i for i in os.listdir('.') if '.lx' in i]
@@ -687,7 +690,9 @@ def search_spectra():
                     Emi = candidate
                 break
     return Abs, Emi
+###############################################################
 
+##RUNS EXCITON ANALYSIS########################################
 def ld():
     Abs, Emi = search_spectra()
     print('Absorption file: {}'.format(Abs))
@@ -724,3 +729,4 @@ def ld():
         print('Results can be found in the ld.lx file')
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
+###############################################################
