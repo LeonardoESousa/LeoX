@@ -120,7 +120,7 @@ def write_tolog(omegas,Js,frase):
         f.write('#{}    {}\n'.format('omega(1e4 bohr^-1)','J^2(eV^2)'))
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         for i in range(len(list1)):
-            f.write("{:05.0f}    {:.4e}\n".format(list1[i],list2[i])) 
+            f.write("{:05.0f}                 {:.4e}\n".format(list1[i],list2[i])) 
         f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
 ###############################################################
 
