@@ -196,9 +196,19 @@ def pega_modos(G,freqlog):
         return pega_modosLP(G,freqlog)
 ###############################################################
 
+##WRITES ATOMS AND XYZ COORDS TO FILE##########################
+def write_input(atomos,G,header,file):
+    with open(file, 'w') as f:
+        f.write(header)
+        for i in range(0,len(atomos)):
+            texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
+            f.write(texto)
+        f.write("\n")
+###############################################################
+
 ##DISPLACE GEOMETRY IN DIRECTIONS WITH IMAGINARY FREQ##########
-def shake(freqlog, T):
-    F, M = pega_freq(freqlog)
+def shake(freqlog, T,header):
+    F, _ = pega_freq(freqlog)
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]
@@ -216,16 +226,9 @@ def shake(freqlog, T):
     A2 = np.reshape(A2,(num_atom,3))
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
-    with open("shaken.lx", 'w') as f:
-        f.write('#Geometry with displacement of '+str(T)+" A:\n" )
-        for k in range(0, np.shape(Gfinal)[0]):
-            text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
-            f.write(text+"\n")
-        f.write('\n#Geometry with displacement of '+str(-T)+" A:\n" )
-        for k in range(0, np.shape(Gfinal2)[0]):
-            text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal2[k,0],Gfinal2[k,1],Gfinal2[k,2])
-            f.write(text+"\n")
-    print("There are 2 geometries saved on shaken.lx!")
+    write_input(atomos,Gfinal,header,'distort_{}_.lx'.format(T))
+    write_input(atomos,Gfinal2,header,'distort_{}_.lx'.format(-T))
+    print("Geometries are saved on files ditort_{}_.lx and distort_{}_.lx!".format(T,-T))
 ###############################################################
 
 ##CHECKS FOR EXISTING GEOMETRIES###############################
