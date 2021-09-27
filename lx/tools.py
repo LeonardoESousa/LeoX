@@ -465,11 +465,11 @@ def andamento():
 
 ##FETCHES  FILES###############################################
 def fetch_file(frase,ends):
-    files = [i for i in os.listdir('.')]
-    for file in files:
+    files = []
+    for file in [i for i in os.listdir('.')]:
         for end in ends:
-            if end not in file:
-                del files[files.index(file)] 
+            if end in file:
+                 files.append(file)
     if len(files) == 0:
         fatal_error("No {} file found. Goodbye!".format(frase))
     freqlog = 'nada0022'    
