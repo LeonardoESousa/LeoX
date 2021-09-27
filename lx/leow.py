@@ -5,16 +5,7 @@ import sys
 import subprocess
 from lx.tools import *
 import shutil
-
-##WRITES ATOMS AND XYZ COORDS TO FILE##########################
-def write_input(atomos,G,header,file):
-    with open(file, 'w') as f:
-        f.write(header)
-        for i in range(0,len(atomos)):
-            texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
-            f.write(texto)
-        f.write("\n")
-###############################################################
+import time
 
 ##GENERATES NEUTRAL INPUT######################################
 def gera_optcom(atomos,G,base,nproc,mem,omega,op):
@@ -89,6 +80,7 @@ def hold_watch(files):
             with open('omega.lx','a') as f:
                 f.write('Aborted!')
             sys.exit()
+        time.sleep(60)    
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
