@@ -73,12 +73,14 @@ def pega_geom(freqlog):
                 elif "---------------------------------------------------------------------" in line and n>1:
                     n = -1       
     else:
-        G = np.zeros((1,4))
+        G = np.zeros((1,3))
+        atomos = []
         with open(freqlog, 'r') as f:
             for line in f:
                 line = line.split()
                 try:
-                    vetor = np.array([float(line[0]),float(line[1]),float(line[2]), float(line[3])])
+                    vetor = np.array([float(line[1]),float(line[2]), float(line[3])])
+                    atomos.append(line[0])
                     G = np.vstack((G,vetor))
                 except:
                     pass
