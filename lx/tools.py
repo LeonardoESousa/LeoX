@@ -226,9 +226,9 @@ def shake(freqlog, T,header):
     A2 = np.reshape(A2,(num_atom,3))
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
-    write_input(atomos,Gfinal,header,'distort_{}_.lx'.format(T))
-    write_input(atomos,Gfinal2,header,'distort_{}_.lx'.format(-T))
-    print("Geometries are saved on files ditort_{}_.lx and distort_{}_.lx!".format(T,-T))
+    write_input(atomos,Gfinal,header,'distort_{}_.com'.format(T))
+    write_input(atomos,Gfinal2,header,'distort_{}_.com'.format(-T))
+    print("Geometries are saved on files ditort_{}_.com and distort_{}_.com!".format(T,-T))
 ###############################################################
 
 ##CHECKS FOR EXISTING GEOMETRIES###############################
@@ -257,7 +257,7 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             A = np.zeros((3*num_atom,1))
             numbers = []
             for i in range(0,len(F)):
-                x = np.linspace(-5, 5, 10000) #ja em angstrom
+                x = np.linspace(-10, 10, 10000) #ja em angstrom
                 boltz = np.tanh(hbar*F[i]/(2*kb*T))
                 prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
                 q = random.choices(x, prob)
@@ -643,7 +643,7 @@ def set_eps(scrf):
 
 ##STOP SUBMISSION OF JOBS######################################
 def abort_batch():
-    choice = input('Are you sure you want to prevent new jobs from being submitted? y or n\n?')
+    choice = input('Are you sure you want to prevent new jobs from being submitted? y or n?\n')
     if choice == 'y':
         try:
             os.remove('limit.lx')

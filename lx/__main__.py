@@ -128,7 +128,7 @@ def main():
         freqlog = fetch_file("log",['.log'])
         base, _, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
-        header = '%nproc={}\nmem={}\n# {} {}\n\nTITLE\n{}\n'.format(nproc,mem,base,scrf,cm)
+        header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,header,'geom.lx')
         print('Geometry saved in the geom.lx file.')    
@@ -136,7 +136,7 @@ def main():
         freqlog = fetch_file("frequency",['.log'])
         base, temtd, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
-        header = '%nproc={}\nmem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
+        header = '%nproc={}\n%mem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
         T = float(input("Magnitude of the displacement in Å? \n")) #K
         shake(freqlog,T,header)
     elif op == '9':
