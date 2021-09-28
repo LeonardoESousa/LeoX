@@ -51,5 +51,3 @@ Onde installed, you should be able to run the program from any folder by just us
 
     - Create a folder. Add either a Gaussian .log file or .com file (for any kind of calculation). Include also a bash script file according to your batch system (follow examples for slurm and task spooler in the batch_examples folder). Run the `lx` command and choose option 6. Follow the instructions to set the calculation parameters. You may choose between a relaxed on unrelaxed tuning procedure. In the case of the former, geometry optimizations are run for each range separation parameter value. In the case of unrelaxed tuning, the geometry provided in the .log or .com file will be used for all calculations. 
  
-
-slsls
