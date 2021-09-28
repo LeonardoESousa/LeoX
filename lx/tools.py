@@ -340,6 +340,20 @@ def calc_tdm(O,V):
     return np.mean(dipoles)
 ###############################################################
 
+##PREVENTS OVERWRITING#########################################
+def naming(arquivo):
+    new_arquivo = arquivo
+    if arquivo in os.listdir('.'):
+        duplo = True
+        vers = 2
+        while duplo:
+            new_arquivo = str(vers)+arquivo
+            if new_arquivo in os.listdir('.'):
+                vers += 1
+            else:
+                duplo = False
+    return new_arquivo        
+###############################################################
 
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
@@ -379,6 +393,7 @@ def spectra(tipo, num_ex, nr):
     else:
         arquivo = 'differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
+    arquivo = naming(arquivo)
     for i in range(0,len(espectro)):
         contribution = espectro[i]*gauss(x,V[i],S[i])
         y  = np.vstack((y,contribution[np.newaxis,:]))
@@ -394,6 +409,7 @@ def spectra(tipo, num_ex, nr):
         for i in range(0,len(x)):
             text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
             f.write(text)
+    print('Spectrum printed in the {} file'.format(arquivo))                
 ############################################################### 
 
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
