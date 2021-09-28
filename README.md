@@ -32,7 +32,7 @@ Alternatively, clone the repository to your computer. Inside the LeoX folder, ru
 
 `pip install .`
 
-Onde installed, you should be able to run the program from any folder by just using the `lx` command.
+Once installed, you should be able to run the program from any folder by just using the `lx` command.
 
 ## How to use it?
 
