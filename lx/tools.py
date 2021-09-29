@@ -669,7 +669,8 @@ def delchk(input,term):
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
-def watcher(rodando,counter):
+def watcher(files,counter):
+    rodando = files.copy()
     done = []
     exit = False
     for input in rodando: 
