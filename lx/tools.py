@@ -257,7 +257,8 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             A = np.zeros((3*num_atom,1))
             numbers = []
             for i in range(0,len(F)):
-                x = np.linspace(-10, 10, 10000) #ja em angstrom
+                #Displacements in  Å
+                x = np.linspace(-10, 10, 10000)
                 boltz = np.tanh(hbar*F[i]/(2*kb*T))
                 prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
                 q = random.choices(x, prob)
@@ -496,7 +497,7 @@ def fetch_file(frase,ends):
     freqlog = 'nada0022'    
     for file in files:
         print("\n"+file)
-        resp = input('Is this the {} file? y ou n?\n'.format(file))
+        resp = input('Is this the {} file? y ou n?\n'.format(frase))
         if resp.lower() == 'y':
             freqlog = file
             break
