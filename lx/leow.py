@@ -113,17 +113,17 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
     files = [i for i in os.listdir('.') if '.com' in i or '.log' in i]
     for file in files:
         shutil.move(file, 'Logs/'+file)
-    J = ((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2)*(27.2114**2)
+    J = np.sqrt(((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2))*(27.2114)
     return J, G, atomos
 ###############################################################
 
 ##WRITES LOG WITH RESULTS######################################
 def write_tolog(omegas,Js,frase):    
     with open("omega.lx", 'w') as f:
-        f.write('#{}    {}\n'.format('omega(1e4 bohr^-1)','J^2(eV^2)'))
+        f.write('#{}    {}\n'.format('w(10^4 bohr^-1)','J(eV)'))
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         for i in range(len(list1)):
-            f.write("{:05.0f}                 {:.4e}\n".format(list1[i],list2[i])) 
+            f.write("{:05.0f}              {:.4e}\n".format(list1[i],list2[i])) 
         f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
 ###############################################################
 
