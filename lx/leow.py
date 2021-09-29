@@ -78,7 +78,7 @@ def hold_watch(files):
         rodando = watcher(rodando,1)
         if 'limit.lx' not in os.listdir('.'):
             with open('omega.lx','a') as f:
-                f.write('Aborted!')
+                f.write('#Aborted!')
             sys.exit()
         time.sleep(60)    
 ###############################################################
@@ -191,10 +191,10 @@ while passo > 50:
         
     except:
         omega1 += passo
-    write_tolog(omegas,Js,'Best value so far:')
+    write_tolog(omegas,Js,'#Best value so far:')
     
 
-write_tolog(omegas,Js,'Done! Optimized value:')
+write_tolog(omegas,Js,'#Done! Optimized value:')
 
 
 
