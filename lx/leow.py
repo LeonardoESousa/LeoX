@@ -87,17 +87,15 @@ def hold_watch(files):
 def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file): 
     omega = "{:05.0f}".format(omega)
     file  = gera_optcom(atomos,G,base,nproc,mem,omega,op)
-    files = watcher([file],1)
-    if len(files) > 0:
-        subprocess.call(['bash', batch_file, files[0]]) 
+    for file in watcher([file],1):
+        subprocess.call(['bash', batch_file, file]) 
     hold_watch([file])
     if op == 'opt':
         G, atomos = pega_geom(file[:-3]+"log")
     neutro      = pega_energia(file[:-3]+"log")
     homo_neutro = pega_homo(file[:-3]+"log")  
     files = gera_ioncom(atomos,G,base,nproc,mem,omega)
-    files = watcher(files,1)
-    for file in files:
+    for file in watcher(files,1):
         subprocess.call(['bash', batch_file, file]) 
     hold_watch(files)
     for file in files:
