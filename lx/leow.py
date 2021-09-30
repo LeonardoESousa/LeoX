@@ -179,13 +179,6 @@ while passo > 50:
             passo = int(passo/2)
             sign = -1*np.sign(int(oms[-1]) - int(oms[-2])) 
         else:           
-            try:
-                sinais = np.asarray(oms[1:]) - np.asarray(oms[:-1])
-                sinais = [np.sign(i) for i in sinais]
-                if len(set(sinais[-4:])) == 1:
-                    passo = int(2*passo)
-            except:
-                pass
             sign = +1*np.sign(int(oms[-1]) - int(oms[-2]))
         omega1 += sign*passo 
         
