@@ -87,6 +87,7 @@ def hold_watch(files):
 def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file): 
     omega = "{:05.0f}".format(omega)
     file  = gera_optcom(atomos,G,base,nproc,mem,omega,op)
+    remover = [file]
     rodando = watcher([file],1)
     for file in rodando:
         subprocess.call(['bash', batch_file, file]) 
@@ -101,6 +102,7 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
         subprocess.call(['bash', batch_file, file]) 
     hold_watch(rodando)
     for file in files:
+        remover.append(file)
         if "pos" in file:
             cation     = pega_energia(file[:-3]+"log")
         elif "neg" in file:
@@ -110,8 +112,7 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
         os.mkdir("Logs")
     except:
         pass
-    files = [i for i in os.listdir('.') if '.com' in i or '.log' in i]
-    for file in files:
+    for file in remover:
         shutil.move(file, 'Logs/'+file)
     J = np.sqrt(((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2))*(27.2114)
     return J, G, atomos
