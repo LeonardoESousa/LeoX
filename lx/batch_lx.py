@@ -5,44 +5,8 @@ import subprocess
 import numpy as np
 import sys
 import shutil
-
-##DELETES CHK FILES############################################
-def delchk(input,term):
-    num = input.split('-')[1]
-    if term == 1:
-        a = ''
-    elif term == 2:
-        a = '2'
-    try:        
-        os.remove('step{}_{}.chk'.format(a,num))
-    except:
-        pass      
-###############################################################        
-
-##CHECKS WHETHER JOBS ARE DONE#################################
-def watcher(rodando,counter):
-    done = []
-    for input in rodando: 
-        term = 0
-        try:
-            with open(input[:-3]+'log', 'r') as f:
-                for line in f:
-                    if 'Normal termination' in line:
-                        term += 1
-                        if counter == 2:
-                            delchk(input,term)
-                    elif 'Error termination' in line:
-                        print('The following job returned an error: {}'.format(input))
-                        print('Please check the file for any syntax errors. Aborting the execution.')
-                        sys.exit()        
-            if term == counter:
-                done.append(input)
-        except:
-            pass        
-    for elem in done:
-        del rodando[rodando.index(elem)]                                
-    return rodando
-###############################################################
+from lx.tools import *
+        
 
 ##CHECKS WHETHER THE JOB IS TWO STEP###########################
 def set_factor(file):

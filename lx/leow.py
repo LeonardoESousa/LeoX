@@ -12,7 +12,7 @@ def gera_optcom(atomos,G,base,nproc,mem,omega,op):
     header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {}\n\nTITLE\n\n0 1\n".format(op)
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
     file = "OPT_"+omega+"_.com"
-    write_input(atomos,G,header,file)
+    write_input(atomos,G,header,'',file)
     return file
 ###############################################################
 
@@ -22,10 +22,10 @@ def gera_ioncom(atomos,G,base,nproc,mem,omega):
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
     file1 = "pos_"+omega+"_.com"
     file2 = "neg_"+omega+"_.com"
-    write_input(atomos,G,header,file1)
+    write_input(atomos,G,header,'',file1)
     header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) \n\nTITLE\n\n-1 2\n"
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
-    write_input(atomos,G,header,file2)
+    write_input(atomos,G,header,'',file2)
     return [file1,file2]
 ###############################################################
 

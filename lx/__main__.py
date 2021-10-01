@@ -130,7 +130,7 @@ def main():
         cm = get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
         G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'geom.lx')
+        write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
     elif op == '8':
         freqlog = fetch_file("frequency",['.log'])

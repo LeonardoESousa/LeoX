@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
-import random
 import sys
+from scipy.stats import norm
 
 ##SOME CONSTANTS##############################################
 epsilon0 = 8.854187817e-12   #F/m
@@ -197,17 +197,17 @@ def pega_modos(G,freqlog):
 ###############################################################
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
-def write_input(atomos,G,header,file):
+def write_input(atomos,G,header,bottom,file):
     with open(file, 'w') as f:
         f.write(header)
         for i in range(0,len(atomos)):
             texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
             f.write(texto)
-        f.write("\n")
+        f.write("\n"+bottom+'\n')
 ###############################################################
 
 ##DISPLACE GEOMETRY IN DIRECTIONS WITH IMAGINARY FREQ##########
-def shake(freqlog, T,header):
+def shake(freqlog, T, header):
     F, _ = pega_freq(freqlog)
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
@@ -226,8 +226,8 @@ def shake(freqlog, T,header):
     A2 = np.reshape(A2,(num_atom,3))
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
-    write_input(atomos,Gfinal,header,'distort_{}_.com'.format(T))
-    write_input(atomos,Gfinal2,header,'distort_{}_.com'.format(-T))
+    write_input(atomos,Gfinal,header,'','distort_{}_.com'.format(T))
+    write_input(atomos,Gfinal2,header,'','distort_{}_.com'.format(-T))
     print("Geometries are saved on files ditort_{}_.com and distort_{}_.com!".format(T,-T))
 ###############################################################
 
@@ -257,23 +257,17 @@ def sample_geom(freqlog, num_geoms, T, header, bottom):
             A = np.zeros((3*num_atom,1))
             numbers = []
             for i in range(0,len(F)):
+                scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
+                normal = norm(scale=scale,loc=0)
                 #Displacements in  Å
-                x = np.linspace(-10, 10, 10000)
-                boltz = np.tanh(hbar*F[i]/(2*kb*T))
-                prob = np.sqrt((M[i]*F[i]*(boltz))/(np.pi*hbar2))*np.exp(-M[i]*F[i]*((x*(10**(-10)))**2)*(boltz)/hbar2)*(abs(x[1]-x[0])*10**(-10)) #com temperatura
-                q = random.choices(x, prob)
-                numbers.append(q[0])
-                A += q[0]*(np.expand_dims(NNC[:,i],axis=1))
+                q = normal.rvs()*1e10
+                numbers.append(q)
+                A += q*(np.expand_dims(NNC[:,i],axis=1))
             numbers = np.round(np.array(numbers)[np.newaxis,:],4)
             np.savetxt(file, numbers, delimiter='\t', fmt='%s')
             A = np.reshape(A,(num_atom,3))
             Gfinal = A + G  
-            with open("Geometries/Geometry-"+str(n+counter)+"-.com", 'w') as f:
-                    f.write(header.replace("UUUUU",str(n)))
-                    for k in range(0, np.shape(Gfinal)[0]):
-                        text = "%2s % 2.14f % 2.14f % 2.14f" % (atomos[k],Gfinal[k,0],Gfinal[k,1],Gfinal[k,2])
-                        f.write(text+"\n")
-                    f.write("\n"+bottom.replace("UUUUU",str(n)))
+            write_input(atomos,Gfinal,header.replace("UUUUU",str(n)),bottom.replace("UUUUU",str(n)),"Geometries/Geometry-"+str(n+counter)+"-.com")
             progress = 100*n/num_geoms
             text = "{:2.1f}%".format(progress)
             print(' ', text, "of the geometries done.",end="\r", flush=True)
