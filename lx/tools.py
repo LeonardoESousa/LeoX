@@ -524,6 +524,12 @@ def batch():
 def omega_tuning():
     geomlog = fetch_file('input or log',['.com','.log'])
     base, _, nproc, mem, _, _ = busca_input(geomlog)
+    if 'IOP' in base.upper() and ('108' in base or '107' in base):
+        base2 = base.split()
+        for elem in base2:
+            if '/' in elem:
+                base = elem
+                break
     omega1 = '0.1'
     passo  = '0.05'
     relax  = 'y'
