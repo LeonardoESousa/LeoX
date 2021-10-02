@@ -114,6 +114,7 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file):
         pass
     for file in remover:
         shutil.move(file, 'Logs/'+file)
+        shutil.move(file[:-3]+'log', 'Logs/'+file[:-3]+'log')
     J = np.sqrt(((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2))*(27.2114)
     return J, G, atomos
 ###############################################################
