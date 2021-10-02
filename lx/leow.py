@@ -165,7 +165,7 @@ except:
     pass
 
 
-while passo > 50:
+while passo > 25:
     if omega1 in omegas:
         ind = omegas.index(omega1)
         J = Js[ind]
