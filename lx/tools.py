@@ -531,7 +531,7 @@ def omega_tuning():
                 base = elem
                 break
     omega1 = '0.1'
-    passo  = '0.05'
+    passo  = '0.025'
     relax  = 'y'
     print('This is the configuration taken from the file:\n')
     print('Functional/basis: {}'.format(base))
