@@ -129,69 +129,80 @@ def write_tolog(omegas,Js,frase):
         f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
 ###############################################################
 
-geomlog = sys.argv[1]
-base    = sys.argv[2]
-nproc   = sys.argv[3]
-mem     = sys.argv[4]
-omega1  = sys.argv[5]
-passo   = sys.argv[6]
-relax   = sys.argv[7]
-script  = sys.argv[8]
+def main():
+    geomlog = sys.argv[1]
+    base    = sys.argv[2]
+    nproc   = sys.argv[3]
+    mem     = sys.argv[4]
+    omega1  = sys.argv[5]
+    passo   = sys.argv[6]
+    relax   = sys.argv[7]
+    script  = sys.argv[8]
 
-try:
-    int(nproc)
-    passo  = float(passo)*10000
-    omega1 = float(omega1)*10000
-except:
-    fatal_error('nproc, omega and step must be numbers. Goodbye!')
-if relax.lower() == 'y':
-    op = 'opt'
-elif relax.lower() == 'n':
-    op = ''
-else:
-    fatal_error('It must be either y or n. Goodbye!')    
-
-omegas, Js = [], []
-oms, jotas = [], []
-try:
-    with open("omega.lx", 'r') as f:
-        for line in f:
-            line = line.split()
-            if len(line) == 2 and '#' not in line:
-                om = float(line[0])
-                omegas.append(om)
-                Js.append(float(line[1]))
-    menor = omegas[Js.index(min(Js))]
-    G, atomos = pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
-except:
-    G, atomos  = pega_geom(geomlog)
-
-while passo > 25:
-    if omega1 in omegas:
-        ind = omegas.index(omega1)
-        J = Js[ind]
-    else:
-        J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script)              
-        omegas.append(omega1)
-        Js.append(J)  
-    oms.append(omega1)
-    jotas.append(J)    
     try:
-        if jotas[-1] - jotas[-2] > 0:     
-            passo = int(passo/2)
-            sign = -1*np.sign(int(oms[-1]) - int(oms[-2])) 
-        else:           
-            sign = +1*np.sign(int(oms[-1]) - int(oms[-2]))
-        omega1 += sign*passo 
-        
+        int(nproc)
+        passo  = float(passo)*10000
+        omega1 = float(omega1)*10000
     except:
-        omega1 += passo
-    write_tolog(omegas,Js,'#Best value so far:')
-    
+        fatal_error('nproc, omega and step must be numbers. Goodbye!')
+    if relax.lower() == 'y':
+        op = 'opt'
+    elif relax.lower() == 'n':
+        op = ''
+    else:
+        fatal_error('It must be either y or n. Goodbye!')    
 
-write_tolog(omegas,Js,'#Done! Optimized value:')
+    omegas, Js = [], []
+    oms, jotas = [], []
+    try:
+        with open("omega.lx", 'r') as f:
+            for line in f:
+                line = line.split()
+                if len(line) == 2 and '#' not in line:
+                    om = float(line[0])
+                    omegas.append(om)
+                    Js.append(float(line[1]))
+        menor = omegas[Js.index(min(Js))]
+        G, atomos = pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
+    except:
+        G, atomos  = pega_geom(geomlog)
+
+    while passo > 25:
+        if omega1 in omegas:
+            ind = omegas.index(omega1)
+            J = Js[ind]
+        else:
+            J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script)              
+            omegas.append(omega1)
+            Js.append(J)  
+        oms.append(omega1)
+        jotas.append(J)    
+        try:
+            if jotas[-1] - jotas[-2] > 0:     
+                passo = int(passo/2)
+                sign = -1*np.sign(int(oms[-1]) - int(oms[-2])) 
+            else:           
+                sign = +1*np.sign(int(oms[-1]) - int(oms[-2]))
+            omega1 += sign*passo 
+
+        except:
+            omega1 += passo
+        write_tolog(omegas,Js,'#Best value so far:')
 
 
+    write_tolog(omegas,Js,'#Done! Optimized value:')
+    menor = omegas[Js.index(min(Js))]
+    log = 'Logs/OPT_{:05.0f}_.log'.format(menor)
+    G, atomos = pega_geom(log)    
+    base, _, nproc, mem, scrf, _ = busca_input(log)
+    cm = get_cm(log)
+    header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
+    write_input(atomos,G, header,'', 'tuned_w.com')
+
+
+
+if __name__ == "__main__":
+    sys.exit(main())        
 
 
         
