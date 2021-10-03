@@ -151,20 +151,20 @@ elif relax.lower() == 'n':
 else:
     fatal_error('It must be either y or n. Goodbye!')    
 
-G, atomos  = pega_geom(geomlog)
 omegas, Js = [], []
 oms, jotas = [], []
 try:
     with open("omega.lx", 'r') as f:
         for line in f:
             line = line.split()
-            if len(line) == 2:
+            if len(line) == 2 and '#' not in line:
                 om = float(line[0])
                 omegas.append(om)
                 Js.append(float(line[1]))
+    menor = omegas[Js.index(min(Js))]
+    G, atomos = pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
 except:
-    pass
-
+    G, atomos  = pega_geom(geomlog)
 
 while passo > 25:
     if omega1 in omegas:
