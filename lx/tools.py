@@ -193,7 +193,7 @@ def pega_modos(G,freqlog):
     if x == 'LP':
         return pega_modosLP(G,freqlog)
     else:
-        return pega_modosLP(G,freqlog)
+        return pega_modosHP(G,freqlog)
 ###############################################################
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
