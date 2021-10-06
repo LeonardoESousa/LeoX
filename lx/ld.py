@@ -41,6 +41,7 @@ def radius(xa,ya,xd,yd,kappa):
 
     #Integrates overlap
     IntOver = np.trapz(Overlap, X)
+    IntOver = max(IntOver,0)
 
     #Gets lifetime
     tau = calc_lifetime(xd,yd)	
