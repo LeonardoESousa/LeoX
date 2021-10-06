@@ -747,9 +747,9 @@ def ld():
         print('Not employing correction!')
     
     print('Computing...')
-    import lx.ld 
+    from lx.ld import run_ld 
     try:
-        ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
+        run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
