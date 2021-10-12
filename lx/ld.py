@@ -160,7 +160,7 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
 
     with open("ld.lx", 'w') as f:
         f.write("Forster Radius:      {:.1f} +/- {:.1f} Å \n".format(mean_radius,error_radius))
-        f.write("Radiative Lifetime:  {:.1f} +/- {:.1f} ps\n".format(mean_life*1e12,error_life*1e12))
+        f.write("Radiative Lifetime:  {:.2e} +/- {:.2e} s\n".format(mean_life,error_life))
         f.write("Avg. Dipole Moment:  {:.1f} a.u. \n".format(moment))
         f.write("Morphology   Avg_Hop_Distance(A)  Diffusion_Length(nm)\n")
         f.write("1D Crystal   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dist1, ld1_mean, error_ld1))
