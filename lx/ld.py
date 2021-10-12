@@ -41,7 +41,6 @@ def radius(xa,ya,xd,yd,kappa):
 
     #Integrates overlap
     IntOver = np.trapz(Overlap, X)
-    IntOver = max(IntOver,0)
 
     #Gets lifetime
     tau = calc_lifetime(xd,yd)	
@@ -113,6 +112,10 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     xa, ya_max, ya_min = data_abs[:,0], data_abs[:,1] + data_abs[:,2], data_abs[:,1] - data_abs[:,2]
     xd, yd_max, yd_min = data_emi[:,0], data_emi[:,1] + data_emi[:,2], data_emi[:,1] - data_emi[:,2]
 
+    ya_max[ya_max < 0] = 0
+    ya_min[ya_min < 0] = 0
+    yd_max[yd_max < 0] = 0
+    yd_min[yd_min < 0] = 0
 
     #Lifetime calculations
     lifetimes = []
