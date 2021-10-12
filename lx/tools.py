@@ -37,6 +37,8 @@ def pega_freq(freqlog):
                 line = line.split()
                 for j in range(3,len(line)):
                     M.append(float(line[j]))
+            elif 'Thermochemistry' in line:
+                break        
     #conversion in angular frequency
     F = np.array(F)*(c*100*2*pi) 
     try:
