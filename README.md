@@ -14,6 +14,10 @@
     - Extract last geometry from Gaussian log file.
     - Distort a molecule's geometry in the direction of imaginary normal modes.
 
+## Cite as:
+
+> de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071.
+
 ## What is necessary to use it?
 
  -  The program requires that the Gaussian quantum chemistry software (G09 or G16) be installed, as it interfaces with it.
@@ -22,7 +26,7 @@
 
 -   To obtain the estimates of Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and emission spectra calculations for the molecule of interest.
 
-## How to install?
+## How to install it?
 
 Run:
 
