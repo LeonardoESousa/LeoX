@@ -7,7 +7,7 @@
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/LeoX?style=plastic)]()
 
 
-A package for spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length) and long-range separation parameter tuning. Interfaces with the Gaussian (09 or 16) package.
+A package for absorption and fluorescence spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length) and long-range separation parameter tuning. Interfaces with the Gaussian (09 or 16) package.
 
 
 Table of Contents
