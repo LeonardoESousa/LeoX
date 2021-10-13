@@ -11,7 +11,7 @@ def main():
     print("#        #       #    #   # #  ")
     print("#        #       #    #  #   # ")
     print("#######  ######   ####  #     #")
-    print("----SPECTRA FOR THE PEOPLE!----\n")
+    print("--SPECTRA - EXCITON - TUNING--\n")
     print("Choose your option:\n")
     print('SPECTRUM SIMULATIONS:')
     print("\t1 - Generate the inputs for the spectrum calculation")
