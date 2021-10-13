@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 import numpy as np
 from scipy.interpolate import interp1d
-import itertools
 
 ##SOME CONSTANTS##############################################
 hbar = 6.582119514e-16       #eV s
-c = 299792458                #m/s
+c    = 299792458             #m/s
 pi = np.pi
 ###############################################################
 
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
-def calc_lifetime(xd,yd):
+def calc_lifetime(xd,yd,dyd):
     #Integrates the emission spectrum
     IntEmi = np.trapz(yd,xd)
     taxa   = (1/hbar)*IntEmi
-    return 1/taxa 
+    error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
+    dlife  = (1/taxa)*(error/taxa)
+    return 1/taxa, dlife 
 ###############################################################
 
 ##CALCULATES FORSTER RADIUS####################################
-def radius(xa,ya,xd,yd,kappa):
+def radius(xa,ya,dya,xd,yd,dyd,kappa):
     #Speed of light
     c = 299792458  #m/s
     
@@ -27,37 +28,51 @@ def radius(xa,ya,xd,yd,kappa):
     minD = min(xd)
     maxA = max(xa)
     maxD = max(xd)
-    MIN = max(minA,minD)
-    MAX = min(maxA,maxD)
+    MIN  = max(minA,minD)
+    MAX  = min(maxA,maxD)
 
     X = np.linspace(MIN, MAX, 1000)
     f1 = interp1d(xa, ya, kind='cubic')
     f2 = interp1d(xd, yd, kind='cubic')
-    YA = f1(X)
-    YD = f2(X)
+    f3 = interp1d(xa, dya, kind='cubic')
+    f4 = interp1d(xd, dyd, kind='cubic')
+    
+
+    YA  = f1(X)
+    YD  = f2(X)
+    DYA = f3(X)
+    DYD = f4(X)
 
     #Calculates the overlap
     Overlap = YA*YD/(X**4)
 
+    #Overlap error
+    OverError   = Overlap*np.sqrt((DYA/YA)**2 + (DYD/YD)**2)
+
     #Integrates overlap
     IntOver = np.trapz(Overlap, X)
 
-    #Gets lifetime
-    tau = calc_lifetime(xd,yd)	
+    #Integrated Overlap Error
+    DeltaOver = np.sqrt(np.trapz((OverError**2),X))       
 
-    #Calculates radius
+    #Gets lifetime
+    tau, delta_tau = calc_lifetime(xd,yd,dyd)	
+
+    #Calculates radius sixth power
     c *= 1e10
     const   = (hbar**3)*(9*(c**4)*(kappa**2)*tau)/(8*pi)
     radius6 = const*IntOver
-    radius  = radius6**(1/6)
-    return radius
-###############################################################
 
-##CALCULATES THE MEAN AND ERROR################################
-def avg_error(variable):
-    mean   = (max(variable) + min(variable))/2
-    error  = (max(variable) - min(variable))/2
-    return mean, error
+    #Relative error in radius6
+    delta   = np.sqrt((DeltaOver/IntOver)**2 + (delta_tau/tau)**2)
+
+    #Calculates radius
+    radius  = radius6**(1/6)
+
+    #Error in radius
+    delta_radius = radius*delta/6
+
+    return radius, delta_radius
 ###############################################################
 
 ##AVG HOPPING DISTANCES########################################
@@ -109,26 +124,16 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     data_emi = np.loadtxt(Emi)
 
     #Gets energies, intensities and errors for the donor and acceptor
-    xa, ya_max, ya_min = data_abs[:,0], data_abs[:,1] + data_abs[:,2], data_abs[:,1] - data_abs[:,2]
-    xd, yd_max, yd_min = data_emi[:,0], data_emi[:,1] + data_emi[:,2], data_emi[:,1] - data_emi[:,2]
+    xa, ya, dya = data_abs[:,0], data_abs[:,1], data_abs[:,2]
+    xd, yd, dyd = data_emi[:,0], data_emi[:,1], data_emi[:,2]
 
-    ya_max[ya_max < 0] = 0
-    ya_min[ya_min < 0] = 0
-    yd_max[yd_max < 0] = 0
-    yd_min[yd_min < 0] = 0
 
     #Lifetime calculations
-    lifetimes = []
-    for yd in [yd_min,yd_max]:
-        lifetimes.append(calc_lifetime(xd,yd))
-    mean_life, error_life = avg_error(lifetimes)
+    mean_life, error_life = calc_lifetime(xd,yd,dyd)
+    
 
     #Radius calculations
-    radii = []
-    for ya, yd in itertools.product([ya_min,ya_max], [yd_min,yd_max]):
-        radii.append(radius(xa,ya,xd,yd,kappa))
-
-    mean_radius, error_radius = avg_error(radii)
+    mean_radius, error_radius = radius(xa,ya,dya,xd,yd,dyd,kappa)
 
 
     #Calculates average hopping distances for each case	
@@ -137,34 +142,23 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     dist2 = r_avg(alpha,moment,rmin,2)
     dist3 = r_avg(alpha,moment,rmin,3)
 
-    LDA, LD1, LD2, LD3 = [], [], [], []
-    for Rf in [mean_radius - error_radius,mean_radius + error_radius]:
-        #Amorphous average hopping distance	and diffusion length
-        LDA.append(difflen(Rf,alpha, moment, dista, 3, Phi))
-
-        #1D crystal average hopping distance and diffusion length		
-        LD1.append(difflen(Rf,alpha, moment, dist1, 1, Phi))
-
-        #2D crystal average hopping distance and diffusion length	
-        LD2.append(difflen(Rf,alpha, moment, dist2, 2, Phi))
-
-        #3D crystal average hopping distance and diffusion length	 
-        LD3.append(difflen(Rf,alpha, moment, dist3, 3, Phi))
-
-
-    lda_mean, error_lda = avg_error(LDA)
-    ld1_mean, error_ld1 = avg_error(LD1)
-    ld2_mean, error_ld2 = avg_error(LD2)
-    ld3_mean, error_ld3 = avg_error(LD3)
+    
+    lda_mean  = difflen(mean_radius,alpha, moment, dista, 3, Phi)
+    error_lda = 3*lda_mean*(error_radius/mean_radius)
+    ld1_mean  = difflen(mean_radius,alpha, moment, dist1, 1, Phi)
+    error_ld1 = 3*ld1_mean*(error_radius/mean_radius)
+    ld2_mean  = difflen(mean_radius,alpha, moment, dist2, 2, Phi)
+    error_ld2 = 3*ld2_mean*(error_radius/mean_radius)
+    ld3_mean  = difflen(mean_radius,alpha, moment, dist3, 3, Phi)
+    error_ld3 = 3*ld3_mean*(error_radius/mean_radius)
 
 
     with open("ld.lx", 'w') as f:
-        f.write("Forster Radius:      {:.1f} +/- {:.1f} Å \n".format(mean_radius,error_radius))
-        f.write("Radiative Lifetime:  {:.2e} +/- {:.2e} s\n".format(mean_life,error_life))
+        f.write("Förster Radius:      {:.1f} +/- {:.1f} Å \n".format(mean_radius,error_radius))
+        f.write("Radiative Lifetime:  {:.3e} +/- {:.3e} s\n".format(mean_life,error_life))
         f.write("Avg. Dipole Moment:  {:.1f} a.u. \n".format(moment))
         f.write("Morphology   Avg_Hop_Distance(A)  Diffusion_Length(nm)\n")
         f.write("1D Crystal   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dist1, ld1_mean, error_ld1))
         f.write("2D Crystal   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dist2, ld2_mean, error_ld2))
         f.write("3D Crystal   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dist3, ld3_mean, error_ld3))
         f.write("Amorphous    {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dista, lda_mean, error_lda))
-
