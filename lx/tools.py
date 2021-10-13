@@ -400,9 +400,18 @@ def spectra(tipo, num_ex, nr):
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     
+    if tipo == 'emi':
+        #Emission rate calculations
+        from lx.ld import calc_lifetime
+        mean_lifetime, error_lifetime = calc_lifetime(x, mean_y,sigma) 
+        segunda = '# Fluorescence Lifetime: {:5.2e} +/- {:5.2e} s^-1\n'.format(mean_lifetime,error_lifetime)
+    else:
+        segunda = ''
+
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
         f.write(primeira)
+        f.write(segunda)
         for i in range(0,len(x)):
             text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
             f.write(text)
