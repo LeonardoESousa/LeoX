@@ -154,7 +154,7 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
 
 
     with open("ld.lx", 'w') as f:
-        f.write("Förster Radius:      {:.1f} +/- {:.1f} Å \n".format(mean_radius,error_radius))
+        f.write("Foerster Radius:      {:.1f} +/- {:.1f} AA \n".format(mean_radius,error_radius))
         f.write("Radiative Lifetime:  {:.3e} +/- {:.3e} s\n".format(mean_life,error_life))
         f.write("Avg. Dipole Moment:  {:.1f} a.u. \n".format(moment))
         f.write("Morphology   Avg_Hop_Distance(A)  Diffusion_Length(nm)\n")
