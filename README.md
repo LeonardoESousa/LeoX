@@ -10,15 +10,15 @@
 Table of Contents
 =================
 <!--ts-->
-   * [What does this program do?](#what-does-this-program-do?)
-   * [Cite as](#cite-as:)
+   * [What does this program do?](#what-does-this-program-do)
+   * [Cite as](#cite-as)
    * [What is necessary to use it?](#what-is-necessary-to-use-it?)
    * [How to install it?](#how-to-install-it?)
    * [How to use it?](#how-to-use-it?)
    
 <!--te-->
 
-## What does this program do?
+## What does this program do
 
 1.  Spectrum simulation:
     - Absorption and Fluorescence spectrum simulations using TD(A)-DFT.
@@ -33,7 +33,7 @@ Table of Contents
     - Extract slast geometry from Gaussian log file.
     - Distorts a molecule's geometry in the direction of imaginary normal modes.
 
-## Cite as:
+## Cite as
 
 > de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071.
 
