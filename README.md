@@ -11,14 +11,14 @@ Table of Contents
 =================
 <!--ts-->
    * [What does this program do?](#what-does-this-program-do)
-   * [Cite as](#cite-as)
+   * [Cite as:](#cite-as)
    * [What is necessary to use it?](#what-is-necessary-to-use-it)
-   * [How to install it?](#how-to-install-it?)
-   * [How to use it?](#how-to-use-it?)
+   * [How to install it?](#how-to-install-it)
+   * [How to use it?](#how-to-use-it)
    
 <!--te-->
 
-## What does this program do
+## What does this program do?
 
 1.  Spectrum simulation:
     - Absorption and Fluorescence spectrum simulations using TD(A)-DFT.
@@ -33,7 +33,7 @@ Table of Contents
     - Extract slast geometry from Gaussian log file.
     - Distorts a molecule's geometry in the direction of imaginary normal modes.
 
-## Cite as
+## Cite as:
 
 > de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071.
 
@@ -62,7 +62,7 @@ Once installed, you should be able to run the program from any folder by just us
 1. For spectrum simulations:
 
     - Create a folder for your project. Add the log file for the frequency calculation to your folder. Run the lx command. Choose option 1 and follow the instructions to select the parameters of the calculation.
-    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in the batch_examples folder.
+    - Add a bash script file to the folder to control execution. This file depends on which batch system you use. Examples for users of slurm or task spooler (ts) are presented [here](https://github.com/LeonardoESousa/LeoX/tree/master/batch_examples).
     - Run the `lx` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 4 to check the progress or option 9 to abort.
     - Once all calculations are done, run the `lx` command and choose option 3. Follow the instructions to set the parameters and the spectrum will be generated.
 
