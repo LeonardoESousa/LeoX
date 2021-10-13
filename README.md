@@ -10,11 +10,11 @@
 Table of Contents
 =================
 <!--ts-->
-   * [What does this program do?](## What does this program do?)
-   * [Cite as](## Cite as:)
-   * [What is necessary to use it?](## What is necessary to use it?)
-   * [How to install it?](## How to install it?)
-   * [How to use it?](## How to use it?)
+   * [What does this program do?](#What-does-this-program-do?)
+   * [Cite as](#Cite-as:)
+   * [What is necessary to use it?](#What-is-necessary-to-use-it?)
+   * [How to install it?](#How-to-install-it?)
+   * [How to use it?](#How-to-use-it?)
    
 <!--te-->
 
