@@ -12,7 +12,7 @@ Table of Contents
 <!--ts-->
    * [What does this program do?](#what-does-this-program-do)
    * [Cite as](#cite-as)
-   * [What is necessary to use it?](#what-is-necessary-to-use-it?)
+   * [What is necessary to use it?](#what-is-necessary-to-use-it)
    * [How to install it?](#how-to-install-it?)
    * [How to use it?](#how-to-use-it?)
    
