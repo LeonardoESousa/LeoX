@@ -7,19 +7,31 @@
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/LeoX?style=plastic)]()
 
 
+Table of Contents
+=================
+<!--ts-->
+   * [What does this program do?](#what_do)
+   * [Cite as](#cite_as)
+   * [What is necessary to use it?](#requirements)
+   * [How to install it?](#install)
+   * [How to use it?](#how_use)
+   
+<!--te-->
+
 ## What does this program do?
 
 1.  Spectrum simulation:
     - Absorption and Fluorescence spectrum simulations using TD(A)-DFT.
-    - Calculations include vibrational contributions to the spectra. Optionally, it may also include solvent effects either by PCM or by a state specific solvation model.
+    - Calculations include vibrational contributions to the spectra. 
+    - Optionally, it may also include solvent effects either by PCM or by a state specific solvation model.
 2.  Exciton properties:   
-    - Estimate Förster radius for transfers between two molecules of equal or different type.
-    - Estimate fluorescence lifetimes.
-    - Estimate singlet exciton diffusion lengths.
+    - Estimates Förster radius for transfers between two molecules of equal or different type.
+    - Estimates fluorescence lifetimes.
+    - Estimates singlet exciton diffusion lengths.
 3.  Extra features:
-    - Tune the parameter of long-range separated functionals.
-    - Extract last geometry from Gaussian log file.
-    - Distort a molecule's geometry in the direction of imaginary normal modes.
+    - Tunes the w parameter of long-range separated functionals.
+    - Extract slast geometry from Gaussian log file.
+    - Distorts a molecule's geometry in the direction of imaginary normal modes.
 
 ## Cite as:
 
