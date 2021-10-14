@@ -165,7 +165,7 @@ def main():
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header, bottom)
+        sample_geom(freqlog, num_geoms, T, header, bottom,False)
 
     elif op == '7':
         omega_tuning()
