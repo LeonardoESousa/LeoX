@@ -240,10 +240,12 @@ def start_counter():
 ###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
-def sample_geom(freqlog, num_geoms, T, header, bottom):
+def sample_geom(freqlog, num_geoms, T, header, bottom,neg):
     F, M = pega_freq(freqlog)
-    if F[0] < 0:
+    if F[0] < 0 and neg:
         fatal_error("Imaginary frequency! Goodbye!")
+    else:
+        F[F < 0] *= -1    
     try:
         os.mkdir('Geometries')
     except:
