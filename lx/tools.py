@@ -483,13 +483,18 @@ def andamento():
                 if 'Link1' in line:
                     factor = 2
         count = 0
+        error = 0
         for file in logs:
             with open('Geometries/'+file, 'r') as f:
                 for line in f:
                     if "Normal termination" in line:
                         count += 1
-        print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
+                    elif "Error termination" in line:
+                        error += 1    
+        print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")
         print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")
+        if error > 0:
+            print("There are {} failed jobs. If you used option 2, check the nohup.out file for details.".format(error))                
     except:
         print('No files found! Check the folder!')                    
 ###############################################################
@@ -688,7 +693,6 @@ def delchk(input,term):
 def watcher(files,counter):
     rodando = files.copy()
     done = []
-    exit = False
     for input in rodando: 
         term = 0
         try:
@@ -700,14 +704,11 @@ def watcher(files,counter):
                             delchk(input,term)
                     elif 'Error termination' in line:
                         print('The following job returned an error: {}'.format(input))
-                        print('Please check the file for any syntax errors. Aborting the execution.')
-                        exit = True        
+                        print('Please check the file for any syntax errors.')        
             if term == counter:
                 done.append(input)
         except:
             pass 
-    if exit:
-        sys.exit()
     for elem in done:
         del rodando[rodando.index(elem)]                                
     return rodando
@@ -768,6 +769,7 @@ def ld():
         print('Something went wrong. Check if the name of the files are correct.')        
 ###############################################################
 
+##CONFORMATIONAL ANALYSIS######################################
 def conf_analysis():
     files = [i for i in os.listdir('Geometries') if '.log' in i]
     scfs, nums = [], []
@@ -782,12 +784,32 @@ def conf_analysis():
                     scfs.append(scf)
                     nums.append(num)
     
-    
     nums = np.array(nums)
     scfs = np.array(scfs)
     scfs -= min(scfs)
-    boltz = np.exp(-1*scfs/0.026)
-    boltz  = 100*(boltz/np.sum(boltz))
+    scfs = np.round(scfs,3)
+    groups = np.unique(scfs)
+    boltz = np.exp(-1*groups/0.026)
+    total  = np.sum(boltz)
+    conformation = [[] for _ in groups]
+    probs = 100*boltz/total
+    for i in range(len(nums)):
+        indice = np.where(groups == scfs[i])[0][0]
+        conformation[indice].append(str(int(nums[i])))
 
-    data = np.hstack((nums[:,np.newaxis],scfs[:,np.newaxis], boltz[:,np.newaxis]))
-    np.savetxt('conformation.lx', data, header='#Geometry\tDeltaE\tProbability(300K)', fmt=['%1.1u','%+1.3f','%+1.1f'] ,delimiter='\t')
+    with open('conformation.lx', 'w') as f: 
+        f.write('#Group    DeltaE(eV)    Prob@300K(%)\n')
+        for i in range(len(probs)):
+            f.write('{:5}     {:<10.3f}    {:<5.1f}\n'.format(i+1,groups[i],probs[i]))
+            f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
+    print('Analysis available on the conformation.lx file')        
+        
+    for i in range(len(conformation)):
+        numero  = conformation[i][0]
+        freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
+        _, _, nproc, mem, scrf, _ = busca_input(freqlog)
+        cm = get_cm(freqlog)
+        header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,'pm6',scrf,cm)
+        G, atomos = pega_geom(freqlog)
+        write_input(atomos,G,header,'','Group_{}_.lx'.format(i+1))
+    print('Conformers saved on the Group_n_.lx files.')

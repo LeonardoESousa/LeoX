@@ -22,12 +22,11 @@ def main():
     print("\t5 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('CONFORMATIONAL ANALYSIS:')
     print("\t6 - Perform conformational search")
-    print("\t7 - Run analysis")
+    print("\t7 - Run conformational analysis")
     print('OTHER FEATURES:')
     print("\t8 - Perform long-range parameter tuning") 
     print("\t9 - Retrieve last geometry from log file") 
-    print("\t10 - Distort a molecule in the direction of imaginary normal modes")
-    print("\t11 - Abort my calculations")
+    print("\t10 - Abort my calculations")
     op = input()
     if op == '1':
         freqlog = fetch_file("frequency",['.log'])
@@ -86,7 +85,7 @@ def main():
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header, bottom)    
+        sample_geom(freqlog, num_geoms, T, header, bottom, True)    
     elif op == '2':
         batch() 
     elif op == '3':
@@ -129,22 +128,15 @@ def main():
         freqlog = fetch_file("frequency",['.log'])
         cm = get_cm(freqlog)
         base, temtd, nproc, mem, scrf, spec = busca_input(freqlog)
-        if temtd == '':
-            tda = ''
-        else:
-            tda = temtd.upper()
         base = 'PM6'    
         print('\nThe suggested configurations for you are:\n')
         print('Method: {}'.format(base))
-        print('Solvent Method: {}'.format(scrf))
         print('Charge and Multiplicity: {}'.format(cm))
-        print('TD-DFT or TDA-DFT or Ground state: {}-DFT'.format(tda))
         print('%nproc='+nproc)    
         print('%mem='+mem)
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':     
             base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-            scrf  = default(scrf,"SCRF keyword is {}. If ok, Enter. Otherwise, type the desired one.\n".format(scrf))
             cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
             nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
             mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
@@ -154,15 +146,9 @@ def main():
             else:
                 tda = 'TD'
 
-        num_ex = input("How many excited states?\n")
-        try:
-            num_ex = int(num_ex)
-        except:
-            fatal_error("This must be a number! Goodbye!")
         num_geoms = int(input("How many geometries to be sampled?\n"))
-        epss = set_eps(scrf)
         header = "%nproc={}\n%Mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,spec,cm)
-        bottom = epss+'\n\n'
+        bottom = '\n\n'
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
@@ -180,13 +166,6 @@ def main():
         write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
     elif op == '10':
-        freqlog = fetch_file("frequency",['.log'])
-        base, temtd, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
-        T = float(input("Magnitude of the displacement in Å? \n")) #K
-        shake(freqlog,T,header)
-    elif op == '11':
         abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")
