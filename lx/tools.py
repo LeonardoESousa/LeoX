@@ -789,7 +789,7 @@ def conf_analysis():
     nums = np.array(nums)
     scfs = np.array(scfs)
     scfs -= min(scfs)
-    scfs = np.round(scfs,2)
+    scfs = np.round(scfs,1)
     groups = np.unique(scfs)
     boltz = np.exp(-1*groups/0.026)
     total  = np.sum(boltz)
@@ -818,3 +818,4 @@ def conf_analysis():
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,header,'','Conformers/Group_{}_.lx'.format(i+1))
     print('Conformers saved on the Group_n_.lx files.')
+###############################################################
