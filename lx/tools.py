@@ -773,7 +773,7 @@ def conf_analysis():
     scfs, nums = [], []
     for file in files:
         with open('Geometries/'+file, 'r') as f:
-            num = file.split('-')[1]
+            num = float(file.split('-')[1])
             for line in f:
                 if 'SCF Done:' in line:
                     line = line.split()
