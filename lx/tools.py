@@ -790,4 +790,4 @@ def conf_analysis():
     boltz  = 100*(boltz/np.sum(boltz))
 
     data = np.hstack((nums[:,np.newaxis],scfs[:,np.newaxis], boltz[:,np.newaxis]))
-    np.savetxt('conformation.lx', data, header='#Geometry\tDeltaE\tProbability(300K)' fmt=['%1.1u','%+1.3f','%+1.1f'] ,delimiter='\t')
+    np.savetxt('conformation.lx', data, header='#Geometry\tDeltaE\tProbability(300K)', fmt=['%1.1u','%+1.3f','%+1.1f'] ,delimiter='\t')
