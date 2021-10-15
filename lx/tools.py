@@ -772,7 +772,7 @@ def conf_analysis():
     files = [i for i in os.listdir('Geometries') if '.log' in i]
     scfs, nums = [], []
     for file in files:
-        with open(file, 'r') as f:
+        with open('Geometries/'+file, 'r') as f:
             num = file.split('-')[1]
             for line in f:
                 if 'SCF Done:' in line:
