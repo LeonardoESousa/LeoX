@@ -695,6 +695,7 @@ def watcher(files,counter):
     done = []
     for input in rodando: 
         term = 0
+        error = False
         try:
             with open(input[:-3]+'log', 'r') as f:
                 for line in f:
@@ -703,9 +704,10 @@ def watcher(files,counter):
                         if counter == 2:
                             delchk(input,term)
                     elif 'Error termination' in line:
+                        error = True
                         print('The following job returned an error: {}'.format(input))
                         print('Please check the file for any syntax errors.')        
-            if term == counter:
+            if term == counter or error:
                 done.append(input)
         except:
             pass 
