@@ -767,3 +767,21 @@ def ld():
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
 ###############################################################
+
+def conf_analysis():
+    files = [i for i in os.listdir('Geometries') if '.log' in i]
+    scfs, nums = [], []
+    for file in files:
+        with open(file, 'r') as f:
+            num = file.split('-')[1]
+            for line in f:
+                if 'SCF Done:' in line:
+                    line = line.split()
+                    scf  = float(line[4])
+                if 'Normal termination' in line:
+                    scfs.append(scf)
+                    nums.append(num)
+    scfs = np.array(scfs)
+    nums = np.array(nums)
+    data = np.hstack((nums[:,np.newaxis],scfs[:,np.newaxis]))
+    np.savetxt('conformation.lx', data, delimiter='\t')
