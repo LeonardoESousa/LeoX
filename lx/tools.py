@@ -777,11 +777,16 @@ def conf_analysis():
             for line in f:
                 if 'SCF Done:' in line:
                     line = line.split()
-                    scf  = float(line[4])
+                    scf  = float(line[4])*27.2114
                 if 'Normal termination' in line:
                     scfs.append(scf)
                     nums.append(num)
-    scfs = np.array(scfs)
+    
+    
     nums = np.array(nums)
-    data = np.hstack((nums[:,np.newaxis],scfs[:,np.newaxis]))
-    np.savetxt('conformation.lx', data, delimiter='\t')
+    scfs = np.array(scfs)
+    boltz = np.exp((scfs-min(scfs))/0.026)
+    boltz  = 100*(boltz/np.sum(boltz))
+
+    data = np.hstack((nums[:,np.newaxis],scfs[:,np.newaxis], boltz[:,np.newaxis]))
+    np.savetxt('conformation.lx', data, fmt=['%1.1u','%+1.3f','%+1.1f'] ,delimiter='\t')
