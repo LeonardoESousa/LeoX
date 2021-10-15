@@ -491,10 +491,10 @@ def andamento():
                         count += 1
                     elif "Error termination" in line:
                         error += 1    
-        print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")
-        print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")
+        print("\n\nThere are", int(count/factor), "successfully completed calculations out of", len(coms), "inputs")
         if error > 0:
             print("There are {} failed jobs. If you used option 2, check the nohup.out file for details.".format(error))                
+        print(np.round(100*(count+error)/(factor*len(coms)),1), "% of the calculations have been run.")
     except:
         print('No files found! Check the folder!')                    
 ###############################################################
