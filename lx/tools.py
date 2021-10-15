@@ -803,7 +803,10 @@ def conf_analysis():
             f.write('{:5}     {:<10.3f}    {:<5.1f}\n'.format(i+1,groups[i],probs[i]))
             f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
     print('Analysis available on the conformation.lx file')        
-        
+    try:
+        os.mkdir('Conformers')
+    except:
+        pass        
     for i in range(len(conformation)):
         numero  = conformation[i][0]
         freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
@@ -811,5 +814,5 @@ def conf_analysis():
         cm = get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,'pm6',scrf,cm)
         G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'','Group_{}_.lx'.format(i+1))
+        write_input(atomos,G,header,'','Conformers/Group_{}_.lx'.format(i+1))
     print('Conformers saved on the Group_n_.lx files.')
