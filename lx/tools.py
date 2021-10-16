@@ -814,7 +814,7 @@ def conf_analysis():
         freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
         _, _, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,'pm6',scrf,cm)
+        header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
     print('Conformers saved on the Group_n_.com files.')
