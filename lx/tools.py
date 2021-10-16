@@ -431,10 +431,10 @@ def busca_input(freqlog):
     with open(freqlog, 'r') as f:
         search = False
         for line in f:
-            if '%nproc' in line:
+            if '%nproc' in line.lower():
                 line = line.split('=')
                 nproc = line[-1].replace('\n','')
-            elif '%mem' in line:
+            elif '%mem' in line.lower():
                 line = line.split('=')
                 mem = line[-1].replace('\n','')
             elif "#" in line and not search and header == '':
