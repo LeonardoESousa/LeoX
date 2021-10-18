@@ -13,10 +13,10 @@ def hold_watch(files):
     while len(rodando) > 0:
         rodando = watcher(rodando,1)
         if 'limit.lx' not in os.listdir('.'):
-            with open('omega.lx','a') as f:
+            with open('conformation.lx','a') as f:
                 f.write('#Aborted!')
             sys.exit()
-        time.sleep(60)    
+        time.sleep(30)    
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
@@ -54,6 +54,7 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
     return lista      
 ############################################################### 
 
+##GETS ENERGY FROM THE ORIGINAL FREQ LOG FILE##################
 def get_energy_origin(freqlog):
     with open(freqlog, 'r') as f:
         for line in f:
@@ -62,8 +63,9 @@ def get_energy_origin(freqlog):
                 scf  = float(line[4])*27.2114
             elif 'Normal termination' in line:
                 return scf
-    
+###############################################################
 
+##GETS ENERGIES FROM OPT LOG FILES#############################
 def get_energies():
     nums,scfs = [], []
     files = [i for i in os.listdir('.') if '.log' in i and 'Geometry' in i]
@@ -83,8 +85,9 @@ def get_energies():
     nums = np.array(nums)
     scfs = np.round(np.array(scfs),1)
     return nums, scfs
+###############################################################
 
-
+##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
 def classify(nums,scfs):
     try:
         data = np.loadtxt('conformation.lx')
@@ -99,7 +102,6 @@ def classify(nums,scfs):
     except:
         old_engs = [] 
         
-
     engs = np.unique(scfs)
     new = []
     for elem in engs:
@@ -127,9 +129,10 @@ def classify(nums,scfs):
         f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    First\n')
         for i in range(len(probs)):
             f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}           {:5}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
-            #f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
-    return int(origin)
+    return int(origin), conformation
+###############################################################
 
+##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 def rodar_freq(origin,nproc,mem,base,cm,batch_file):
     geomlog = 'Geometries/Geometry-'+str(origin)+'-.log'
     G, atomos = pega_geom(geomlog) 
@@ -145,7 +148,7 @@ def rodar_freq(origin,nproc,mem,base,cm,batch_file):
                 return log
             elif 'Error termination' in line:
                 return None
-
+###############################################################
 
 
 def main():
@@ -163,31 +166,50 @@ def main():
     except:
         pass    
     
-    cm = get_cm(freqlog) 
-    header = "%nproc={}\n%mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
-    scf = get_energy_origin(freqlog)
-    origin = classify(np.array([0]),np.array([scf]))
+    cm        = get_cm(freqlog) 
+    header    = "%nproc={}\n%mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
+    scf       = get_energy_origin(freqlog)
+    origin, _ = classify(np.array([0]),np.array([scf]))
     try:
         nums, scfs = get_energies()
-        origin = classify(nums,scfs)
+        origin, _  = classify(nums,scfs)
     except:
         pass    
 
     T0 = T
 
-    for _ in range(rounds):
+    for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
         nums, scfs = get_energies()
-        origin = classify(nums,scfs)
+        origin, conformation  = classify(nums,scfs)
+        with open('conformation.lx', 'a') as f:
+            f.write('#\nRound {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
-            log = rodar_freq(origin,nproc,mem,base,cm,script)
+            log  = rodar_freq(origin,nproc,mem,base,cm,script)
             if log != None:
                 freqlog = log
                 T0 = T
         else:
             T0 += 100
 
+    with open('conformation.lx', 'a') as f:
+        f.write('#Search concluded!')
+
+    try:
+        os.mkdir('Conformers')
+    except:
+        pass    
+
+    for i in range(len(conformation)):
+        numero  = conformation[i][0]
+        freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
+        _, _, nproc, mem, scrf, _ = busca_input(freqlog)
+        cm = get_cm(freqlog)
+        header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
+        G, atomos = pega_geom(freqlog)
+        write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
+    
 
 
 

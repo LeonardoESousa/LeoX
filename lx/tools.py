@@ -208,31 +208,6 @@ def write_input(atomos,G,header,bottom,file):
         f.write("\n"+bottom+'\n')
 ###############################################################
 
-##DISPLACE GEOMETRY IN DIRECTIONS WITH IMAGINARY FREQ##########
-def shake(freqlog, T, header):
-    F, _ = pega_freq(freqlog)
-    G, atomos = pega_geom(freqlog)
-    NNC = pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]
-    A1 = np.zeros((3*num_atom,1))
-    A2 = np.zeros((3*num_atom,1))
-    F = F[F < 0]
-    if len(F) == 0:
-        fatal_error("No imaginary frquencies in the log file. Goodbye!")
-    F = -1*F
-    for i in range(len(F)):
-        q = [-1*T,T]
-        A1 += q[0]*(np.expand_dims(NNC[:,i],axis=1))
-        A2 += q[1]*(np.expand_dims(NNC[:,i],axis=1))
-    A1 = np.reshape(A1,(num_atom,3))
-    A2 = np.reshape(A2,(num_atom,3))
-    Gfinal  = A1 + G
-    Gfinal2 = A2 + G
-    write_input(atomos,Gfinal,header,'','distort_{}_.com'.format(T))
-    write_input(atomos,Gfinal2,header,'','distort_{}_.com'.format(-T))
-    print("Geometries are saved on files ditort_{}_.com and distort_{}_.com!".format(T,-T))
-###############################################################
-
 ##CHECKS FOR EXISTING GEOMETRIES###############################
 def start_counter():
     files = [file for file in os.listdir('Geometries') if ".com" in file and "Geometr" in file]
@@ -802,53 +777,4 @@ def ld():
         print('Results can be found in the ld.lx file')
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
-###############################################################
-
-##CONFORMATIONAL ANALYSIS######################################
-def conf_analysis():
-    files = [i for i in os.listdir('Geometries') if '.log' in i]
-    scfs, nums = [], []
-    for file in files:
-        with open('Geometries/'+file, 'r') as f:
-            num = float(file.split('-')[1])
-            for line in f:
-                if 'SCF Done:' in line:
-                    line = line.split()
-                    scf  = float(line[4])*27.2114
-                elif 'Normal termination' in line:
-                    scfs.append(scf)
-                    nums.append(num)
-    
-    nums = np.array(nums)
-    scfs = np.array(scfs)
-    scfs -= min(scfs)
-    scfs = np.round(scfs,1)
-    groups = np.unique(scfs)
-    boltz = np.exp(-1*groups/0.026)
-    total  = np.sum(boltz)
-    conformation = [[] for _ in groups]
-    probs = 100*boltz/total
-    for i in range(len(nums)):
-        indice = np.where(groups == scfs[i])[0][0]
-        conformation[indice].append(str(int(nums[i])))
-
-    with open('conformation.lx', 'w') as f: 
-        f.write('#Group    DeltaE(eV)    Prob@300K(%)\n')
-        for i in range(len(probs)):
-            f.write('{:5}     {:<10.1f}    {:<5.1f}\n'.format(i+1,groups[i],probs[i]))
-            f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
-    print('Analysis available on the conformation.lx file')        
-    try:
-        os.mkdir('Conformers')
-    except:
-        pass        
-    for i in range(len(conformation)):
-        numero  = conformation[i][0]
-        freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
-        _, _, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
-        G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
-    print('Conformers saved on the Group_n_.com files.')
 ###############################################################
