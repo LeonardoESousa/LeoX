@@ -93,7 +93,7 @@ def classify(nums,scfs):
             nums     = np.append(data[:,4],nums)
             scfs     = np.append(data[:,1],scfs)
         else:
-            old_engs = data[1] 
+            old_engs = np.array(data[1]) 
             nums     = np.append(data[4],nums)
             scfs     = np.append(data[1],scfs)
     except:
