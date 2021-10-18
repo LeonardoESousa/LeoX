@@ -575,7 +575,40 @@ def omega_tuning():
     subprocess.Popen(['nohup', 'python3', folder+'/leow.py', geomlog, base, nproc, mem, omega1, passo, relax, script, '&'])
 ###############################################################
 
+##RUNS W TUNING################################################
+def conformational():
+    freqlog = fetch_file('frequency',['.log'])
+    _, _, nproc, mem, _, _ = busca_input(freqlog)
+    base = 'pm6'
+    T = '500'
+    print('This is the configuration taken from the file:\n')
+    print('Functional/basis: {}'.format(base))
+    print('%nproc='+nproc)    
+    print('%mem='+mem)
+    print('Initial Temperature: {} K'.format())
+    change = input('Are you satisfied with these parameters? y or n?\n')
+    if change == 'n':
+        base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
+        nproc  = default(nproc,'nproc={}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
+        mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
+        T      = default(T,"initial temperature is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
 
+    script    = fetch_file('batch script',['.sh'])    
+    num_geoms = input("Number of geometries sampled at each round?\n")
+    rounds    = input("Number of rounds?\n")
+    limite    = input("Maximum number of jobs to be submitted simultaneously?\n")
+    try:
+        limite    = int(limite)
+        num_geoms = int(num_geoms)
+        rounds    = int(rounds)
+    except:
+        fatal_error("These must be integers. Goodbye!")
+    with open('limit.lx','w') as f:
+        f.write(str(limite))
+    import subprocess
+    folder = os.path.dirname(os.path.realpath(__file__)) 
+    subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, num_geoms, rounds, script, '&'])
+###############################################################
 
 
 ##FINDS SUITABLE VALUE FOR STD#################################    
@@ -782,7 +815,7 @@ def conf_analysis():
                 if 'SCF Done:' in line:
                     line = line.split()
                     scf  = float(line[4])*27.2114
-                if 'Normal termination' in line:
+                elif 'Normal termination' in line:
                     scfs.append(scf)
                     nums.append(num)
     

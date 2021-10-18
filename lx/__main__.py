@@ -125,34 +125,34 @@ def main():
     elif op == '5':
         ld()
     elif op == '6':
-        freqlog = fetch_file("frequency",['.log'])
-        cm = get_cm(freqlog)
-        base, temtd, nproc, mem, scrf, spec = busca_input(freqlog)
-        base = 'PM6'    
-        print('\nThe suggested configurations for you are:\n')
-        print('Method: {}'.format(base))
-        print('Charge and Multiplicity: {}'.format(cm))
-        print('%nproc='+nproc)    
-        print('%mem='+mem)
-        change = input('Are you satisfied with these parameters? y or n?\n')
-        if change.lower() == 'n':     
-            base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-            cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
-            nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-            mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
-            tamm  = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
-            if tamm.lower() == 'y':
-                tda = 'TDA'
-            else:
-                tda = 'TD'
-
-        num_geoms = int(input("How many geometries to be sampled?\n"))
-        header = "%nproc={}\n%Mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,spec,cm)
-        bottom = '\n\n'
-        T = float(input("Temperature in Kelvin?\n"))
-        if T <= 0:
-            fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header, bottom,False)
+        conformational()
+        #freqlog = fetch_file("frequency",['.log'])
+        #cm = get_cm(freqlog)
+        #base, temtd, nproc, mem, scrf, spec = busca_input(freqlog)
+        #base = 'PM6'    
+        #print('\nThe suggested configurations for you are:\n')
+        #print('Method: {}'.format(base))
+        #print('Charge and Multiplicity: {}'.format(cm))
+        #print('%nproc='+nproc)    
+        #print('%mem='+mem)
+        #change = input('Are you satisfied with these parameters? y or n?\n')
+        #if change.lower() == 'n':     
+        #    base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
+        #    cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
+        #    nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
+        #    mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
+        #    tamm  = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
+        #    if tamm.lower() == 'y':
+        #        tda = 'TDA'
+        #    else:
+        #        tda = 'TD'
+        #num_geoms = int(input("How many geometries to be sampled?\n"))
+        #header = "%nproc={}\n%Mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,spec,cm)
+        #bottom = '\n\n'
+        #T = float(input("Temperature in Kelvin?\n"))
+        #if T <= 0:
+        #    fatal_error("Have you heard about absolute zero? Goodbye!")
+        #sample_geom(freqlog, num_geoms, T, header, bottom,False)
     elif op == '7':
         conf_analysis()
     elif op == '8':
