@@ -26,12 +26,19 @@ def rodar_opts(lista, batch_file):
     hold_watch(lista)
 ###############################################################
 
+##CHECKS FOR EXISTING GEOMETRIES###############################
+def my_counter():
+    files = [file for file in os.listdir('.') if ".com" in file and "Geometry" in file]
+    return len(files)
+###############################################################
+
+
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
     lista = []
     F, M = pega_freq(freqlog)
     F[F < 0] *= -1    
-    counter = start_counter()
+    counter = my_counter()
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
@@ -78,7 +85,7 @@ def get_energies():
                     nums.append(num)
     for file in files:
         shutil.move(file, 'Geometries/'+file)
-        shutil.move(file[:-3]+'.com', 'Geometries/'+file[:-3]+'com')
+        shutil.move(file[:-3]+'com', 'Geometries/'+file[:-3]+'com')
     nums = np.array(nums)
     scfs = np.round(np.array(scfs),1)
     return nums, scfs
