@@ -598,9 +598,9 @@ def conformational():
     rounds    = input("Number of rounds?\n")
     limite    = input("Maximum number of jobs to be submitted simultaneously?\n")
     try:
-        limite    = int(limite)
-        num_geoms = int(num_geoms)
-        rounds    = int(rounds)
+        int(limite)
+        int(num_geoms)
+        int(rounds)
     except:
         fatal_error("These must be integers. Goodbye!")
     with open('limit.lx','w') as f:

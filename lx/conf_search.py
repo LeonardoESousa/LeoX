@@ -7,70 +7,6 @@ from lx.tools import *
 import shutil
 import time
 
-##GENERATES NEUTRAL INPUT######################################
-def gera_optcom(atomos,G,base,nproc,mem,omega,op):
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {}\n\nTITLE\n\n0 1\n".format(op)
-    header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
-    file = "OPT_"+omega+"_.com"
-    write_input(atomos,G,header,'',file)
-    return file
-###############################################################
-
-##GENERATES ION INPUTS#########################################
-def gera_ioncom(atomos,G,base,nproc,mem,omega):
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000)\n\nTITLE\n\n1 2\n"
-    header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
-    file1 = "pos_"+omega+"_.com"
-    file2 = "neg_"+omega+"_.com"
-    write_input(atomos,G,header,'',file1)
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) \n\nTITLE\n\n-1 2\n"
-    header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
-    write_input(atomos,G,header,'',file2)
-    return [file1,file2]
-###############################################################
-
-##GETS ENERGY FROM LOG#########################################
-def pega_energia(file):
-    energias = []
-    with open(file, 'r') as f:
-        for line in f:
-            if "SCF Done:" in line:
-                line = line.split()
-                energias.append(float(line[4]))
-    return min(energias)
-###############################################################
-
-##MAP TO FLOAT WITH EXCEPTION##################################
-def to_float(num):
-    try:
-        num = float(num)
-    except:
-        num = np.nan
-    return num        
-###############################################################
-
-##GETS HOMO ENERGY FROM LOG####################################
-def pega_homo(file):
-    HOMOS = []
-    with open(file, 'r') as f:
-        for line in f:
-            if ('OPT' in file and "Optimized Parameters" in line) :
-                HOMOS = [] 
-            if "occ. eigenvalues" in line:
-                line = line.split()
-                homos = line[4:]
-                HOMOS.extend(homos)
-    if len(HOMOS) == 0:
-        with open(file, 'r') as f:
-            for line in f:
-                if "occ. eigenvalues" in line:
-                    line = line.split()
-                    homos = line[4:]
-                    HOMOS.extend(homos)
-    HOMOS = list(map(to_float,HOMOS))
-    return max(HOMOS)
-###############################################################
-
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def hold_watch(files):
     rodando = files.copy()
@@ -91,17 +27,6 @@ def rodar_opts(lista, batch_file):
     hold_watch(lista)
     os.chdir('..')
 ###############################################################
-
-##WRITES LOG WITH RESULTS######################################
-def write_tolog(omegas,Js,frase):    
-    with open("omega.lx", 'w') as f:
-        f.write('#{}    {}\n'.format('w(10^4 bohr^-1)','J(eV)'))
-        list1, list2 = zip(*sorted(zip(omegas, Js)))
-        for i in range(len(list1)):
-            f.write("{:05.0f}               {:.4f}\n".format(list1[i],list2[i])) 
-        f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
-###############################################################
-
 
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
@@ -140,10 +65,10 @@ def get_energy_origin(freqlog):
                 return scf
     
 
-def get_energies(nums,scfs,folder,freqlog=None):
-    files = [i for i in os.listdir('.') if '.log' in i or i == freqlog]
+def get_energies(nums,scfs):
+    files = [i for i in os.listdir('.') if '.log' in i]
     for file in files:
-        with open(folder+'/'+file, 'r') as f:
+        with open(file, 'r') as f:
             num = float(file.split('-')[1])
             for line in f:
                 if 'SCF Done:' in line:
@@ -220,9 +145,9 @@ def main():
     base      = sys.argv[2]
     nproc     = sys.argv[3]
     mem       = sys.argv[4]
-    T         = sys.argv[5]
-    num_geoms = sys.argv[6]
-    rounds    = sys.argv[7]
+    T         = float(sys.argv[5])
+    num_geoms = int(sys.argv[6])
+    rounds    = int(sys.argv[7])
     script    = sys.argv[8]
     
     try:
