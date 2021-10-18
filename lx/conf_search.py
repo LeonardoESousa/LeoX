@@ -166,7 +166,7 @@ def main():
 
     for _ in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
-        rodar_opts(lista)
+        rodar_opts(lista,script)
         nums, scfs = get_energies(nums,scfs, 'Geometries')
         origin = classify(scf)
         if origin != 0:
