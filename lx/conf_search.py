@@ -204,7 +204,7 @@ def main():
 
     for i in range(len(conformation)):
         numero  = conformation[i][0]
-        if numero == 0:
+        if numero == '0':
             freqlog = freq0    
         else:
             freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
