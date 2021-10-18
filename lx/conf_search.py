@@ -14,7 +14,7 @@ def hold_watch(files):
         rodando = watcher(rodando,1)
         if 'limit.lx' not in os.listdir('.'):
             with open('conformation.lx','a') as f:
-                f.write('#Aborted!')
+                f.write('\n#Aborted!')
             sys.exit()
         time.sleep(30)    
 ###############################################################
@@ -184,7 +184,7 @@ def main():
         nums, scfs = get_energies()
         origin, conformation  = classify(nums,scfs)
         with open('conformation.lx', 'a') as f:
-            f.write('#\nRound {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
+            f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
             log  = rodar_freq(origin,nproc,mem,base,cm,script)
             if log != None:
