@@ -161,6 +161,7 @@ def main():
     rounds    = int(sys.argv[7])
     script    = sys.argv[8]
     
+    freq0 = freqlog
     try:
         os.mkdir('Geometries')
     except:
@@ -203,7 +204,10 @@ def main():
 
     for i in range(len(conformation)):
         numero  = conformation[i][0]
-        freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
+        if numero == 0:
+            freqlog = freq0    
+        else:
+            freqlog = 'Geometries/Geometry-{}-.log'.format(numero) 
         _, _, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
