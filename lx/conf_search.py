@@ -118,7 +118,7 @@ def classify(scf_origin):
     with open('conformation.lx', 'w') as f: 
         f.write('#Group    Energy(eV)     DeltaE(eV)    Prob@300K(%)    First\n')
         for i in range(len(probs)):
-            f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}    {:<5.0f}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
+            f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}    {:5}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
             #f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
     return int(origin)
 
