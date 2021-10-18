@@ -195,7 +195,7 @@ def main():
             T0 += 100
 
     with open('conformation.lx', 'a') as f:
-        f.write('#Search concluded!')
+        f.write('\n#Search concluded!')
 
     try:
         os.mkdir('Conformers')
