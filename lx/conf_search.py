@@ -26,19 +26,13 @@ def rodar_opts(lista, batch_file):
     hold_watch(lista)
 ###############################################################
 
-##CHECKS FOR EXISTING GEOMETRIES###############################
-def my_counter():
-    files = [file for file in os.listdir('.') if ".com" in file and "Geometry" in file]
-    return len(files)
-###############################################################
-
 
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
     lista = []
     F, M = pega_freq(freqlog)
     F[F < 0] *= -1    
-    counter = my_counter()
+    counter = start_counter()
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
@@ -94,9 +88,14 @@ def get_energies():
 def classify(nums,scfs):
     try:
         data = np.loadtxt('conformation.lx')
-        old_engs = data[:,1] 
-        nums     = np.append(data[:,4],nums)
-        scfs     = np.append(data[:,1],scfs)
+        if len(np.shape(data)) > 1:
+            old_engs = data[:,1] 
+            nums     = np.append(data[:,4],nums)
+            scfs     = np.append(data[:,1],scfs)
+        else:
+            old_engs = data[1] 
+            nums     = np.append(data[4],nums)
+            scfs     = np.append(data[1],scfs)
     except:
         old_engs = [] 
         
@@ -127,7 +126,7 @@ def classify(nums,scfs):
     with open('conformation.lx', 'w') as f: 
         f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    First\n')
         for i in range(len(probs)):
-            f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}       {:5}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
+            f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}           {:5}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
             #f.write('#Geometries: {}\n\n'.format(', '.join(conformation[i])))
     return int(origin)
 
