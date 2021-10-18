@@ -585,13 +585,13 @@ def conformational():
     print('Functional/basis: {}'.format(base))
     print('%nproc='+nproc)    
     print('%mem='+mem)
-    print('Initial Temperature: {} K'.format())
+    print('Initial Temperature: {} K'.format(T))
     change = input('Are you satisfied with these parameters? y or n?\n')
     if change == 'n':
         base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
         nproc  = default(nproc,'nproc={}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
         mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
-        T      = default(T,"initial temperature is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
+        T      = default(T,"initial temperature is {}. If ok, Enter. Otherwise, type it.\n".format(T))
 
     script    = fetch_file('batch script',['.sh'])    
     num_geoms = input("Number of geometries sampled at each round?\n")
