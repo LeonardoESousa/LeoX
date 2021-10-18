@@ -88,8 +88,8 @@ def classify(scf_origin):
         scfs     = data[:,1]
     except:
         old_engs = [] 
-        nums     = [0]
-        scfs     = [scf_origin]
+        nums     = np.array([0])
+        scfs     = np.array([scf_origin])
 
 
     engs = np.unique(scfs)
