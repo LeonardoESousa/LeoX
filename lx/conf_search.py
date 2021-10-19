@@ -170,10 +170,10 @@ def main():
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf       = get_energy_origin(freqlog)
-    origin, _ = classify(np.array([0]),np.array([scf]))
+    origin, conformation = classify(np.array([0]),np.array([scf]))
     try:
         nums, scfs = get_energies()
-        origin, _  = classify(nums,scfs)
+        origin, conformation  = classify(nums,scfs)
     except:
         pass    
 
