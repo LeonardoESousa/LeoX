@@ -62,7 +62,7 @@ def get_energy_origin(freqlog):
                 line = line.split()
                 scf  = float(line[4])*27.2114
             elif 'Normal termination' in line:
-                return scf
+                return np.round(scf,1)
 ###############################################################
 
 ##GETS ENERGIES FROM OPT LOG FILES#############################
