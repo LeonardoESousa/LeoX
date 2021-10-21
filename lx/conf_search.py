@@ -111,7 +111,12 @@ def classify(nums,scfs,rots):
             rots     = np.append(data[4],rots)
     except:
         old_rots = [] 
-        
+
+    args = np.argsort(scfs)
+    scfs = scfs[args]
+    nums = nums[args]
+    rots = rots[args]
+    
     unrots = np.unique(rots)
     new = []
     for elem in unrots:
