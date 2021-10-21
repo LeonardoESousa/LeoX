@@ -132,7 +132,7 @@ def classify(nums,scfs,rots):
         conformation[indice].append(str(int(nums[i])))
         engs[indice]  = scfs[i]
 
-    probs  = np.exp(-1*(engs - min(engs)/0.026))
+    probs  = np.exp(-1*(engs - min(engs))/0.026)
     probs  /= np.sum(probs)
     args   = np.argsort(engs)
     engs   = engs[args]
@@ -143,7 +143,7 @@ def classify(nums,scfs,rots):
     with open('conformation.lx', 'w') as f: 
         f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    ObjFunction    First\n')
         for i in range(len(probs)):
-            f.write('{:5}     {:<10.3f}    {:<10.3f}    {:<5.1f}           {:<5.1f}           {:5}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],groups[i],conformation[i][0]))
+            f.write('{:5}     {:<10.3f}    {:<10.3f}    {:<5.1f}           {:<5.1f}           {:5}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],groups[i],conformation[i][-1]))
     return int(origin), conformation
 ###############################################################
 
