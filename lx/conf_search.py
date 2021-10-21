@@ -61,13 +61,16 @@ def get_energy_origin(freqlog):
             if 'SCF Done:' in line:
                 line = line.split()
                 scf  = float(line[4])*27.2114
+            elif 'Rotational constants' in line:
+                line = line.split()
+                rot  = np.array([float(line[3]),float(line[4]),float(line[5])])    
             elif 'Normal termination' in line:
-                return np.round(scf,1)
+                return scf, rot
 ###############################################################
 
 ##GETS ENERGIES FROM OPT LOG FILES#############################
-def get_energies():
-    nums,scfs = [], []
+def get_energies(baseline):
+    nums,scfs,rots = [], [], []
     files = [i for i in os.listdir('.') if '.log' in i and 'Geometry' in i]
     for file in files:
         with open(file, 'r') as f:
@@ -76,59 +79,64 @@ def get_energies():
                 if 'SCF Done:' in line:
                     line = line.split()
                     scf  = float(line[4])*27.2114
+                    rot  = np.sqrt(np.sum((np.array([float(line[3]),float(line[4]),float(line[5])]) - baseline)**2))
                 elif 'Normal termination' in line:
                     scfs.append(scf)
                     nums.append(num)
+                    rots.append(rot)
     for file in files:
         shutil.move(file, 'Geometries/'+file)
         shutil.move(file[:-3]+'com', 'Geometries/'+file[:-3]+'com')
     nums = np.array(nums)
-    scfs = np.round(np.array(scfs),1)
-    return nums, scfs
+    scfs = np.array(scfs)
+    rots = np.array(rots)
+    return nums, scfs, rots
 ###############################################################
 
 ##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
-def classify(nums,scfs):
+def classify(nums,scfs,rots):
     try:
         data = np.loadtxt('conformation.lx')
         if len(np.shape(data)) > 1:
-            old_engs = data[:,1] 
-            nums     = np.append(data[:,4],nums)
+            old_rots = data[:,4] 
+            nums     = np.append(data[:,5],nums)
             scfs     = np.append(data[:,1],scfs)
+            rots     = np.append(data[:,4],rots)
         else:
-            old_engs = np.array(data[1]) 
-            nums     = np.append(data[4],nums)
+            old_rots = np.array(data[4]) 
+            nums     = np.append(data[5],nums)
             scfs     = np.append(data[1],scfs)
+            rots     = np.append(data[4],rots)
     except:
-        old_engs = [] 
+        old_rots = [] 
         
-    engs = np.unique(scfs)
+    unrots = np.unique(rots)
     new = []
-    for elem in engs:
-        if elem not in old_engs:
+    for elem in unrots:
+        if elem not in old_rots:
             new.append(elem)
 
     try:
-        pos = np.where(scfs == max(new))[0][0]
+        pos = np.where(rots == max(new))[0][0]
         origin = nums[pos]
     except:
         origin = 0
 
-    scfs -= min(scfs)
-    scfs = np.round(scfs,1)
-    groups = np.unique(scfs)
-    boltz = np.exp(-1*groups/0.026)
-    total  = np.sum(boltz)
+    groups = np.unique(rots)
     conformation = [[] for _ in groups]
-    probs = 100*boltz/total
+    engs  = np.zeros(len(groups))
     for i in range(len(nums)):
-        indice = np.where(groups == scfs[i])[0][0]
+        indice = np.where(groups == rots[i])[0][0]
         conformation[indice].append(str(int(nums[i])))
+        engs[indice]  = scfs[i]
+
+    probs = np.exp(-1*(engs - min(engs)/0.026))
+    probs /= np.sum(probs)
 
     with open('conformation.lx', 'w') as f: 
-        f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    First\n')
+        f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    ObjFunction    First\n')
         for i in range(len(probs)):
-            f.write('{:5}     {:<10.1f}    {:<10.1f}    {:<5.1f}           {:5}\n'.format(i+1,engs[i],groups[i],probs[i],conformation[i][0]))
+            f.write('{:5}     {:<10.3f}    {:<10.3f}    {:<5.1f}       {:<5.1f}           {:5}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],groups[i],conformation[i][0]))
     return int(origin), conformation
 ###############################################################
 
@@ -169,11 +177,11 @@ def main():
     
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
-    scf       = get_energy_origin(freqlog)
-    origin, conformation = classify(np.array([0]),np.array([scf]))
+    scf, baseline  = get_energy_origin(freqlog)
+    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([0]))
     try:
-        nums, scfs = get_energies()
-        origin, conformation  = classify(nums,scfs)
+        nums, scfs, rots = get_energies(baseline)
+        origin, conformation  = classify(nums,scfs,rots)
     except:
         pass    
 
@@ -182,8 +190,8 @@ def main():
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
-        nums, scfs = get_energies()
-        origin, conformation  = classify(nums,scfs)
+        nums, scfs, rots = get_energies(baseline)
+        origin, conformation  = classify(nums,scfs,rots)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
