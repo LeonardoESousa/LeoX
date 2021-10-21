@@ -79,7 +79,9 @@ def get_energies(baseline):
                 if 'SCF Done:' in line:
                     line = line.split()
                     scf  = float(line[4])*27.2114
-                    rot  = np.sqrt(np.sum((np.array([float(line[3]),float(line[4]),float(line[5])]) - baseline)**2))
+                elif 'Rotational constants' in line:
+                    line = line.split()
+                    rot  = 1e3*np.round(np.sqrt(np.sum((np.array([float(line[3]),float(line[4]),float(line[5])]) - baseline)**2)),3)
                 elif 'Normal termination' in line:
                     scfs.append(scf)
                     nums.append(num)
@@ -136,7 +138,7 @@ def classify(nums,scfs,rots):
     with open('conformation.lx', 'w') as f: 
         f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    ObjFunction    First\n')
         for i in range(len(probs)):
-            f.write('{:5}     {:<10.3f}    {:<10.3f}    {:<5.1f}       {:<5.1f}           {:5}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],groups[i],conformation[i][0]))
+            f.write('{:5}     {:<10.3f}    {:<10.3f}    {:<5.1f}           {:<5.1f}           {:5}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],groups[i],conformation[i][0]))
     return int(origin), conformation
 ###############################################################
 
