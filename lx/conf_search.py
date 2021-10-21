@@ -111,11 +111,6 @@ def classify(nums,scfs,rots):
             rots     = np.append(data[4],rots)
     except:
         old_rots = [] 
-
-    args = np.argsort(scfs)
-    scfs = scfs[args]
-    nums = nums[args]
-    rots = rots[args]
     
     unrots = np.unique(rots)
     new = []
@@ -137,8 +132,13 @@ def classify(nums,scfs,rots):
         conformation[indice].append(str(int(nums[i])))
         engs[indice]  = scfs[i]
 
-    probs = np.exp(-1*(engs - min(engs)/0.026))
-    probs /= np.sum(probs)
+    probs  = np.exp(-1*(engs - min(engs)/0.026))
+    probs  /= np.sum(probs)
+    args   = np.argsort(engs)
+    engs   = engs[args]
+    probs  = probs[args]
+    groups = groups[args]
+    conformation = [conformation[i] for i in args]
 
     with open('conformation.lx', 'w') as f: 
         f.write('#Group    Energy(eV)    DeltaE(eV)    Prob@300K(%)    ObjFunction    First\n')
