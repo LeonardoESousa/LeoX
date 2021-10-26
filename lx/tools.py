@@ -562,6 +562,7 @@ def conformational():
     print('%nproc='+nproc)    
     print('%mem='+mem)
     print('Initial Temperature: {} K'.format(T))
+    print('Temperature step: {} K'.format(DT))
     change = input('Are you satisfied with these parameters? y or n?\n')
     if change == 'n':
         base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
