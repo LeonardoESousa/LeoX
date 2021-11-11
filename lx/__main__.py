@@ -3,7 +3,7 @@ import sys
 from lx.tools import *
 
 
-def main():
+def interface():
     print("#                       #     #")
     print("#        ######   ####   #   # ")
     print("#        #       #    #   # #  ")
@@ -139,6 +139,17 @@ def main():
         abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")
+
+def main():
+    try:
+        freqlog = sys.argv[1]
+        G, atomos = pega_geom(freqlog)    
+        for i in range(len(atomos)):
+            print("{:2s}  {:.14f}  {:.14f}  {:.14f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+    except:
+        interface()
+    
+    
 
 
     
