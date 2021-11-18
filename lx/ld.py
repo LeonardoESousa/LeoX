@@ -31,7 +31,10 @@ def radius(xa,ya,dya,xd,yd,dyd,kappa):
     MIN  = max(minA,minD)
     MAX  = min(maxA,maxD)
 
-    X = np.linspace(MIN, MAX, 1000)
+    if MIN > MAX:
+        return 0, 0
+
+    X = np.linspace(MIN, MAX, 100)
     f1 = interp1d(xa, ya, kind='cubic')
     f2 = interp1d(xd, yd, kind='cubic')
     f3 = interp1d(xa, dya, kind='cubic')
@@ -42,10 +45,8 @@ def radius(xa,ya,dya,xd,yd,dyd,kappa):
     YD  = f2(X)
     DYA = f3(X)
     DYD = f4(X)
-
     #Calculates the overlap
     Overlap = YA*YD/(X**4)
-
     #Overlap error
     OverError   = Overlap*np.sqrt((DYA/YA)**2 + (DYD/YD)**2)
 
@@ -131,11 +132,9 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     #Lifetime calculations
     mean_life, error_life = calc_lifetime(xd,yd,dyd)
     
-
     #Radius calculations
     mean_radius, error_radius = radius(xa,ya,dya,xd,yd,dyd,kappa)
-
-
+    
     #Calculates average hopping distances for each case	
     dista = 0.25*alpha*moment + 1.25*rmin
     dist1 = r_avg(alpha,moment,rmin,1)
