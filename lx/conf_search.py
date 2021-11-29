@@ -167,7 +167,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
             crix[a] = np.sqrt((last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1))
             criy[a] = np.sqrt((last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1))
             criz[a] = np.sqrt((last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1))
-            last[a] += 1 #nums[m]
+            last[a] += 1
         except:
             new.append(nums[m])
             rotx  = np.append(rotx,rotsx[m])
@@ -193,9 +193,9 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
     exam   = exam[args]
 
     with open('conformation.lx', 'w') as f: 
-        f.write('{:6}\t{:10}\t{:10}\t{:12}\t{:10}\t{:10}\t{:10}\t{:10}\t{:10}\t{:10}\t{:10}\t{:10}'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last\n'))
+        f.write('{:6}\t{:10}\t{:10}\t{:12}\t{:10}\t{:10}\t{:10}\t{:5}\t{:5}\t{:5}\t{:6}\t{:6}'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last\n'))
         for i in range(len(probs)):
-            f.write('{:6}\t{:<10.3f}\t{:<10.3f}\t{:<12.1f}\t{:<10.7f}\t{:<10.7f}\t{:<10.7f}\t{:<10.3f}\t{:<10.3f}\t{:<10.3f}\t{:<10.0f}\t{:<10.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
+            f.write('{:6}\t{:<10.3f}\t{:<10.3f}\t{:<12.1f}\t{:<10.7f}\t{:<10.7f}\t{:<10.7f}\t{:<5.3f}\t{:<5.3f}\t{:<5.3f}\t{:<6.0f}\t{:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
     return int(origin), last
 ###############################################################
 
