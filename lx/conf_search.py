@@ -145,7 +145,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
         criz = np.array([])
         exam = np.array([])
     new = []
-    cr0 = 1E-3
+    cr0 = 1E-4
     for m in range(len(rotsx)):
         distances = []   
         ROTX = np.copy(rotx)
@@ -162,12 +162,15 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
             a = distances.index(0)
             exam[a] = nums[m]
             engs[a] = (last[a]*engs[a] + scfs[m])/(last[a]+1)
+            x2      = (last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1)
+            y2      = (last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1)
+            z2      = (last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1)
             rotx[a] = (last[a]*rotx[a] + rotsx[m])/(last[a]+1)
             roty[a] = (last[a]*roty[a] + rotsy[m])/(last[a]+1)
             rotz[a] = (last[a]*rotz[a] + rotsz[m])/(last[a]+1)    
-            crix[a] = np.sqrt((last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1) - rotx[a]**2)
-            criy[a] = np.sqrt((last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1) - roty[a]**2)
-            criz[a] = np.sqrt((last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1) - rotz[a]**2)
+            crix[a] = np.sqrt(x2 -rotx[a]**2)
+            criy[a] = np.sqrt(y2 -roty[a]**2)
+            criz[a] = np.sqrt(z2 -rotz[a]**2)
             last[a] += 1
         except:
             new.append(nums[m])
@@ -194,9 +197,9 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
     exam   = exam[args]
 
     with open('conformation.lx', 'w') as f: 
-        f.write('{:6}\t{:10}\t{:10}\t{:12}\t{:10}\t{:10}\t{:10}\t{:5}\t{:5}\t{:5}\t{:6}\t{:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
+        f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:8}  {:8}  {:8}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
         for i in range(len(probs)):
-            f.write('{:6}\t{:<10.3f}\t{:<10.3f}\t{:<12.1f}\t{:<10.7f}\t{:<10.7f}\t{:<10.7f}\t{:<5.3f}\t{:<5.3f}\t{:<5.3f}\t{:<6.0f}\t{:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
+            f.write('{:<6}  {:<10.3f}  {:<10.3f}  {:<12.1f}  {:<10.7f}  {:<10.7f}  {:<10.7f}  {:<8.2e}  {:<8.2e}  {:<8.2e}  {:<6.0f}  {:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
     return int(origin), last
 ###############################################################
 
