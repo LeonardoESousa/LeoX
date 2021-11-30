@@ -70,11 +70,11 @@ def get_energy_origin(freqlog):
 ###############################################################
 
 ##GETS ENERGIES FROM OPT LOG FILES#############################
-def get_energies():
+def get_energies(folder):
     nums,scfs,rotsx, rotsy, rotsz = [], [], [], [], []
-    files = [i for i in os.listdir('.') if '.log' in i and 'Geometry' in i]
+    files = [i for i in os.listdir(folder) if '.log' in i and 'Geometry' in i]
     for file in files:
-        with open(file, 'r') as f:
+        with open(folder+'/'+file, 'r') as f:
             num = float(file.split('-')[1])
             for line in f:
                 if 'SCF Done:' in line:
@@ -92,8 +92,11 @@ def get_energies():
                     rotsy.append(roty)
                     rotsz.append(rotz)
     for file in files:
-        shutil.move(file, 'Geometries/'+file)
-        shutil.move(file[:-3]+'com', 'Geometries/'+file[:-3]+'com')
+        try:
+            shutil.move(file, 'Geometries/'+file)
+            shutil.move(file[:-3]+'com', 'Geometries/'+file[:-3]+'com')
+        except:
+            pass
     nums = np.array(nums)
     scfs = np.array(scfs)
     rotsx = np.array(rotsx)
@@ -199,7 +202,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz,cr0):
         f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:8}  {:8}  {:8}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
         for i in range(len(probs)):
             f.write('{:<6}  {:<10.3f}  {:<10.3f}  {:<12.1f}  {:<10.7f}  {:<10.7f}  {:<10.7f}  {:<8.2e}  {:<8.2e}  {:<8.2e}  {:<6.0f}  {:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
-    return int(origin), last
+    return int(origin), exam
 ###############################################################
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
@@ -241,11 +244,11 @@ def main():
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
-    cr0 = [rotx/100, roty/100, rotz/100]
+    cr0 = [rotx/10, roty/10, rotz/10]
     origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0)
-    files = [i for i in os.listdir('.') if 'Geometry' in i and '.log' in i]
+    files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
-        nums, scfs, rotsx, rotsy, rotsz = get_energies()
+        nums, scfs, rotsx, rotsy, rotsz = get_energies('Geometries')
         origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
     else:
         pass    
@@ -255,7 +258,7 @@ def main():
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
-        nums, scfs, rotsx,rotsy,rotsz = get_energies()
+        nums, scfs, rotsx,rotsy,rotsz = get_energies('.')
         origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
