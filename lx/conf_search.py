@@ -106,8 +106,8 @@ def measure(vec1,vec2,cr):
     vec1 = np.array(vec1)     
     vec2 = np.array(vec2)
     cr   = np.array(cr)
-    dist = max(abs(vec1/vec2 -1) - cr)
-    distance =  np.heaviside(dist,0)   #np.heaviside(1e3*np.sqrt(np.sum((vec1 - vec2)**2))-1,1) + np.heaviside(abs(e1-e2)- 0.01, 1)
+    dist = max(abs(vec1 -vec2) - cr)
+    distance =  np.heaviside(dist,0)   
     return distance
 
 ##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
@@ -145,6 +145,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
         criz = np.array([])
         exam = np.array([])
     new = []
+    cr0 = 1E-3
     for m in range(len(rotsx)):
         distances = []   
         ROTX = np.copy(rotx)
@@ -152,9 +153,9 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
         ROTZ = np.copy(rotz)
         for n in range(len(ROTX)):
             try:
-                cr = [max(crix[n],0.01), max(criy[n],0.01), max(criz[n],0.01)]
+                cr = [max(crix[n],cr0), max(criy[n],cr0), max(criz[n],cr0)]
             except:
-                cr = [0.01, 0.01, 0.01]    
+                cr = [cr0, cr0, cr0]    
             distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
             distances.append(distance)
         try:
@@ -164,18 +165,18 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
             rotx[a] = (last[a]*rotx[a] + rotsx[m])/(last[a]+1)
             roty[a] = (last[a]*roty[a] + rotsy[m])/(last[a]+1)
             rotz[a] = (last[a]*rotz[a] + rotsz[m])/(last[a]+1)    
-            crix[a] = np.sqrt((last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1))
-            criy[a] = np.sqrt((last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1))
-            criz[a] = np.sqrt((last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1))
+            crix[a] = np.sqrt((last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1) - rotx[a]**2)
+            criy[a] = np.sqrt((last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1) - roty[a]**2)
+            criz[a] = np.sqrt((last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1) - rotz[a]**2)
             last[a] += 1
         except:
             new.append(nums[m])
             rotx  = np.append(rotx,rotsx[m])
             roty  = np.append(roty,rotsy[m])
             rotz  = np.append(rotz,rotsz[m])
-            crix  = np.append(crix,0.01)
-            criy  = np.append(criy,0.01)
-            criz  = np.append(criz,0.01) 
+            crix  = np.append(crix,cr0)
+            criy  = np.append(criy,cr0)
+            criz  = np.append(criz,cr0) 
             engs  = np.append(engs,scfs[m])
             last  = np.append(last,1)
             exam  = np.append(exam,nums[m])
@@ -193,7 +194,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
     exam   = exam[args]
 
     with open('conformation.lx', 'w') as f: 
-        f.write('{:6}\t{:10}\t{:10}\t{:12}\t{:10}\t{:10}\t{:10}\t{:5}\t{:5}\t{:5}\t{:6}\t{:6}'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last\n'))
+        f.write('{:6}\t{:10}\t{:10}\t{:12}\t{:10}\t{:10}\t{:10}\t{:5}\t{:5}\t{:5}\t{:6}\t{:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
         for i in range(len(probs)):
             f.write('{:6}\t{:<10.3f}\t{:<10.3f}\t{:<12.1f}\t{:<10.7f}\t{:<10.7f}\t{:<10.7f}\t{:<5.3f}\t{:<5.3f}\t{:<5.3f}\t{:<6.0f}\t{:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
     return int(origin), last
