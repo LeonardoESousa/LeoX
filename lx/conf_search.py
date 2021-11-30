@@ -111,7 +111,7 @@ def measure(vec1,vec2,cr):
     return distance
 
 ##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
-def classify(nums,scfs,rotsx, rotsy, rotsz):
+def classify(nums,scfs,rotsx, rotsy, rotsz,cr0):
     try:
         data = np.loadtxt('conformation.lx')
         if len(np.shape(data)) > 1:
@@ -145,7 +145,6 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
         criz = np.array([])
         exam = np.array([])
     new = []
-    cr0 = 1E-4
     for m in range(len(rotsx)):
         distances = []   
         ROTX = np.copy(rotx)
@@ -153,9 +152,9 @@ def classify(nums,scfs,rotsx, rotsy, rotsz):
         ROTZ = np.copy(rotz)
         for n in range(len(ROTX)):
             try:
-                cr = [max(crix[n],cr0), max(criy[n],cr0), max(criz[n],cr0)]
+                cr = [max(crix[n],cr0[0]), max(criy[n],cr0[1]), max(criz[n],cr0[2])]
             except:
-                cr = [cr0, cr0, cr0]    
+                cr = cr0    
             distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
             distances.append(distance)
         try:
@@ -242,11 +241,12 @@ def main():
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
-    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]))
+    cr0 = [rotx/100, roty/100, rotz/100]
+    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0)
     files = [i for i in os.listdir('.') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
         nums, scfs, rotsx, rotsy, rotsz = get_energies()
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz)
+        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
     else:
         pass    
 
@@ -256,7 +256,7 @@ def main():
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
         nums, scfs, rotsx,rotsy,rotsz = get_energies()
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz)
+        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
