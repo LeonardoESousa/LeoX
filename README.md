@@ -74,15 +74,15 @@ Once installed, you should be able to run the program from any folder by just us
     - Create a folder for your project. Add the log file for the frequency calculation to your folder. Run the lx command. Choose option 1 and follow the instructions to select the parameters of the calculation.
     - Add a bash script file to the folder to control execution. This file depends on which batch system you use. Examples for users of slurm or task spooler (ts) are presented [here](https://github.com/LeonardoESousa/LeoX/tree/master/batch_examples).
     - Run the `lx` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 4 to check the progress or option 9 to abort.
-    <img width="975" alt="LeoX1" src="https://user-images.githubusercontent.com/94139072/144780278-ef3b8ced-af82-4a9d-a8a5-667ebdcbdd71.png">
+    <img width="575" alt="LeoX1" src="https://user-images.githubusercontent.com/94139072/144780278-ef3b8ced-af82-4a9d-a8a5-667ebdcbdd71.png">
 
     - Once all calculations are done, run the `lx` command and choose option 3. Follow the instructions to set the parameters and the spectrum will be generated.
-    <img width="636" alt="LeoX2" src="https://user-images.githubusercontent.com/94139072/144780487-7d0a5800-c925-4dbc-8b88-041b6d7f35b3.png">
+    <img width="436" alt="LeoX2" src="https://user-images.githubusercontent.com/94139072/144780487-7d0a5800-c925-4dbc-8b88-041b6d7f35b3.png">
     
     - After the spectrum is generated, a file with the extension .lx will be created. For absorption spectra, the file will be named "cross_section.lx", whereas for fluorescence spectra, the file will be named "differential_rate.lx"
     - It is possible to generate a spectrum with partially concluded calculations. Option 3 can be used multiple times without overwriting the previously generated spectrum. Each time a spectrum is generated, it will have a number at the beginning of the file name, such as "2cross_section.lx".
     - Each spectrum file is expected to have three columns as indicated below, where the third column can be used to estimate if the amount of sampled geometries are enough for accurate spectrum simulation.
-    <img width="367" alt="LeoX3" src="https://user-images.githubusercontent.com/94139072/144781496-a7c1e1cc-56ea-4de4-85bd-6a0e7ed37d7e.png">
+    <img width="450" alt="LeoX3" src="https://user-images.githubusercontent.com/94139072/144781496-a7c1e1cc-56ea-4de4-85bd-6a0e7ed37d7e.png">
 
 
 2. For exciton properties:
