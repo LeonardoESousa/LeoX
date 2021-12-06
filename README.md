@@ -91,6 +91,7 @@ Once installed, you should be able to run the program from any folder by just us
     - Once this is done, copy the spectra to a folder and inside this folder run the `lx` command. Choose option 5. Follow the instructions to set the calculation parameters, exemplified below.  
     <img width="628" alt="LeoX4" src="https://user-images.githubusercontent.com/94139072/144785795-70dec39b-c63d-41a7-9613-fcf4cd1c244f.png">
    
+    - The correction for short distances takes into account the transition dipole moment of the donor molecule, extracted directly from the Gaussian log. Details can be obtained in the indicated published paper.
     - A file called `ld.lx` will be generated with all the information.
     <img width="666" alt="LeoX5" src="https://user-images.githubusercontent.com/94139072/144785882-f4c61243-3680-460b-ba2c-1962337df560.png">
 
