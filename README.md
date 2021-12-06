@@ -79,7 +79,10 @@ Once installed, you should be able to run the program from any folder by just us
     - Once all calculations are done, run the `lx` command and choose option 3. Follow the instructions to set the parameters and the spectrum will be generated.
     <img width="736" alt="LeoX2" src="https://user-images.githubusercontent.com/94139072/144780487-7d0a5800-c925-4dbc-8b88-041b6d7f35b3.png">
     
-    - After the spectrum is generated, a file with the extension .lx will be created. For absorption spectra, the file will be named "cross_section.lx", whereas for fluorescence spectra, the file will be names 
+    - After the spectrum is generated, a file with the extension .lx will be created. For absorption spectra, the file will be named "cross_section.lx", whereas for fluorescence spectra, the file will be named "differential_rate.lx"
+    - It is possible to generate a spectrum with partially concluded calculations. Option 3 can be used multiple times without overwriting the previously generated spectrum. Each time a spectrum is generated, it will be named with a number at the beginning of the file name, such as "2cross_section.lx".
+    - Each spectrum file is expected to have 3 columnsm as indicated below:
+    <img width="467" alt="LeoX3" src="https://user-images.githubusercontent.com/94139072/144781496-a7c1e1cc-56ea-4de4-85bd-6a0e7ed37d7e.png">
 
 
 2. For exciton properties:
