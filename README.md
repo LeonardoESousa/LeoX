@@ -61,6 +61,10 @@ Alternatively, clone the repository to your computer. Inside the LeoX folder, ru
 
 `pip install .`
 
+Depending on the operating system, the commands above may need to be replace by
+
+`pip3 install LeoX` or `pip3 install .`
+
 Once installed, you should be able to run the program from any folder by just using the `lx` command.
 
 ## How to use it?
