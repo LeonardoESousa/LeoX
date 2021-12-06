@@ -93,7 +93,7 @@ Once installed, you should be able to run the program from any folder by just us
    
     - The correction for short distances takes into account the transition dipole moment of the donor molecule, extracted directly from the Gaussian log. Details can be obtained in the indicated published paper.
     - A file called `ld.lx` will be generated with all the information.
-    <img width="970" alt="Captura de Tela 2021-12-06 às 01 13 13" src="https://user-images.githubusercontent.com/94139072/144786165-547a9a2e-cca3-434a-90a7-82c610d97d7e.png">
+    <img width="320" alt="Captura de Tela 2021-12-06 às 01 13 13" src="https://user-images.githubusercontent.com/94139072/144786165-547a9a2e-cca3-434a-90a7-82c610d97d7e.png">
 
 
     - Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. To calculate the Förster radius for transfers between different molecules, you must provide the fluorescence spectrum of the donor molecule and the absorption spectrum of the acceptor molecule. The fluorescence lifetime shown will correspond to that of the donor molecule.  
