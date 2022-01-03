@@ -45,7 +45,7 @@ def to_float(num):
     try:
         num = float(num)
     except:
-        num = np.nan
+        num = -np.inf
     return num        
 ###############################################################
 
@@ -67,8 +67,8 @@ def pega_homo(file):
                     line = line.split()
                     homos = line[4:]
                     HOMOS.extend(homos)
-    #HOMOS = list(map(to_float,HOMOS))
-    return float(HOMOS[-1]) #max(HOMOS)
+    HOMOS = list(map(to_float,HOMOS))
+    return max(HOMOS)
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
