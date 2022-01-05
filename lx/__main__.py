@@ -104,16 +104,15 @@ def main():
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 fatal_error('It must be either one. Goodbye!')
+        tipo = tipo[:3]
+        if tipo == 'abs':
+            estados = input("How many excited states?\n")
+            try:
+                estados = int(estados)
+            except:
+                fatal_error("It must be an integer! Goodbye!")
         else:
-            tipo = tipo[:3]
-            if tipo == 'abs':
-                estados = input("How many excited states?\n")
-                try:
-                    estados = int(estados)
-                except:
-                    fatal_error("It must be an integer! Goodbye!")
-            else:
-                estados = 1
+            estados = 1
         num_ex = range(0,estados+1)
         num_ex = list(map(int,num_ex))
         gather_data(opc, tipo)
