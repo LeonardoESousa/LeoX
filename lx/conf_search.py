@@ -114,8 +114,9 @@ def measure(vec1,vec2,cr):
     return distance
 
 ##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
-def classify(nums,scfs,rotsx, rotsy, rotsz,cr0):
+def classify(nums,scfs,rotsx, rotsy, rotsz,cr0,first):
     try:
+        assert not first
         data = np.loadtxt('conformation.lx')
         if len(np.shape(data)) > 1:
             engs =  data[:,1].flatten()
@@ -245,11 +246,11 @@ def main():
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
     cr0 = [rotx/10, roty/10, rotz/10]
-    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0)
+    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0,True)
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
         nums, scfs, rotsx, rotsy, rotsz = get_energies('Geometries')
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
+        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
     else:
         pass    
 
@@ -259,7 +260,7 @@ def main():
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
         nums, scfs, rotsx,rotsy,rotsz = get_energies('.')
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0)
+        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
