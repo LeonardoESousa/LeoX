@@ -105,25 +105,25 @@ def get_energy_origin(freqlog):
 def get_energies(folder,original_molecule):
     nums,scfs,rotsx, rotsy, rotsz = [], [], [], [], []
     files = [i for i in os.listdir(folder) if '.log' in i and 'Geometry' in i]
-    files = [i for i in files if np.array_equal(original_molecule, fingerprint(i))]
     for file in files:
-        with open(folder+'/'+file, 'r') as f:
-            num = float(file.split('-')[1])
-            for line in f:
-                if 'SCF Done:' in line:
-                    line = line.split()
-                    scf  = float(line[4])*27.2114
-                elif 'Rotational constants' in line:
-                    line = line.split()
-                    rotx = float(line[3])
-                    roty = float(line[4])
-                    rotz = float(line[5])
-                elif 'Normal termination' in line:
-                    scfs.append(scf)
-                    nums.append(num)
-                    rotsx.append(rotx)
-                    rotsy.append(roty)
-                    rotsz.append(rotz)
+        if np.array_equal(original_molecule, fingerprint(file)):
+            with open(folder+'/'+file, 'r') as f:
+                num = float(file.split('-')[1])
+                for line in f:
+                    if 'SCF Done:' in line:
+                        line = line.split()
+                        scf  = float(line[4])*27.2114
+                    elif 'Rotational constants' in line:
+                        line = line.split()
+                        rotx = float(line[3])
+                        roty = float(line[4])
+                        rotz = float(line[5])
+                    elif 'Normal termination' in line:
+                        scfs.append(scf)
+                        nums.append(num)
+                        rotsx.append(rotx)
+                        rotsy.append(roty)
+                        rotsz.append(rotz)
     for file in files:
         try:
             shutil.move(file, 'Geometries/'+file)
