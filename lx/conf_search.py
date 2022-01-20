@@ -8,6 +8,38 @@ from lx.tools import *
 import shutil
 import time
 
+def distance_matrix(G):
+    matrix = np.zeros((1,np.shape(G)[0]))
+    for ind in range(np.shape(G)[0]):
+            distances = G - G[ind,:]
+            distances = np.sqrt(np.sum(np.square(distances),axis=1))    
+            matrix = np.vstack((matrix,distances[np.newaxis,:]))
+    matrix = matrix[1:,:]
+    matrix[matrix==0] = np.inf
+    return matrix
+
+def bond(matrix,atoms):
+    valence = {1:0.31, 2:0.28, 3:1.28, 4:0.96, 5:0.84, 6:0.76, 7:0.71, 8:0.66, 9:0.57, 10:0.58, 11:1.66, 12:1.41, 13:1.21, 14:1.11,
+           15:1.07, 16:1.05, 17:1.02, 18:1.06, 19:2.03, 20:1.76, 21:1.7, 22:1.6, 23:1.53, 24:1.39, 25:1.61, 26:1.52, 27:1.50,
+           28:1.24, 29:1.32, 30:1.22, 31:1.22, 32:1.2, 33:1.19, 34:1.20, 35:1.20, 36:1.16}
+    CM = np.zeros(np.shape(matrix))
+    while np.min(matrix) < 100:
+        x,y = np.where(matrix == np.min(matrix))
+        x, y = x[0], y[0]         
+        if matrix[x,y] < 1.3*(valence[atoms[x]] + valence[atoms[y]]):
+            CM[x,y] += 1
+            CM[y,x] += 1      
+        matrix[x,y] = np.inf
+        matrix[y,x] = np.inf   
+    return CM      
+
+def fingerprint(file):
+    G, atoms = pega_geom(file)
+    atoms = np.array(atoms).astype(float)
+    matrix = distance_matrix(G)
+    cm = bond(matrix,atoms)
+    return cm              
+
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def hold_watch(files):
     rodando = files.copy()
@@ -70,9 +102,10 @@ def get_energy_origin(freqlog):
 ###############################################################
 
 ##GETS ENERGIES FROM OPT LOG FILES#############################
-def get_energies(folder):
+def get_energies(folder,original_molecule):
     nums,scfs,rotsx, rotsy, rotsz = [], [], [], [], []
     files = [i for i in os.listdir(folder) if '.log' in i and 'Geometry' in i]
+    files = [i for i in files if np.array_equal(original_molecule, fingerprint(i))]
     for file in files:
         with open(folder+'/'+file, 'r') as f:
             num = float(file.split('-')[1])
@@ -241,7 +274,7 @@ def main():
         os.mkdir('Geometries')
     except:
         pass    
-    
+    original_molecule = fingerprint(freqlog)
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
@@ -249,7 +282,7 @@ def main():
     origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0,True)
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
-        nums, scfs, rotsx, rotsy, rotsz = get_energies('Geometries')
+        nums, scfs, rotsx, rotsy, rotsz = get_energies('Geometries',original_molecule)
         origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
     else:
         pass    
@@ -259,7 +292,7 @@ def main():
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         rodar_opts(lista,script)
-        nums, scfs, rotsx,rotsy,rotsz = get_energies('.')
+        nums, scfs, rotsx,rotsy,rotsz = get_energies('.',original_molecule)
         origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
