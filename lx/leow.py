@@ -67,7 +67,8 @@ def pega_homo(file):
                     line = line.split()
                     homos = line[4:]
                     HOMOS.extend(homos)
-    return float(HOMOS[-1])
+    HOMOS = list(map(to_float,HOMOS))
+    return np.max(HOMOS)
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
