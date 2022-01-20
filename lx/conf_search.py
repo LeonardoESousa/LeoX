@@ -33,8 +33,8 @@ def bond(matrix,atoms):
         matrix[y,x] = np.inf   
     return CM      
 
-def fingerprint(file):
-    G, atoms = pega_geom(file)
+def fingerprint(file,folder):
+    G, atoms = pega_geom(folder+file)
     atoms = np.array(atoms).astype(float)
     matrix = distance_matrix(G)
     cm = bond(matrix,atoms)
@@ -106,7 +106,7 @@ def get_energies(folder,original_molecule):
     nums,scfs,rotsx, rotsy, rotsz = [], [], [], [], []
     files = [i for i in os.listdir(folder) if '.log' in i and 'Geometry' in i]
     for file in files:
-        if np.array_equal(original_molecule, fingerprint(file)):
+        if np.array_equal(original_molecule, fingerprint(file,folder)):
             with open(folder+'/'+file, 'r') as f:
                 num = float(file.split('-')[1])
                 for line in f:
@@ -274,7 +274,7 @@ def main():
         os.mkdir('Geometries')
     except:
         pass    
-    original_molecule = fingerprint(freqlog)
+    original_molecule = fingerprint(freqlog,'.')
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
