@@ -86,10 +86,7 @@ def pega_geom(freqlog):
                     G = np.vstack((G,vetor))
                 except:
                     pass
-    try:
-        G = G[1:,:]                 
-    except:
-        fatal_error("No geometry in the log file! Goodbye!")
+    G = G[1:,:]                 
     return G, atomos
 ###############################################################
 

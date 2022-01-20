@@ -34,10 +34,13 @@ def bond(matrix,atoms):
     return CM      
 
 def fingerprint(file,folder):
-    G, atoms = pega_geom(folder+'/'+file)
-    atoms = np.array(atoms).astype(float)
-    matrix = distance_matrix(G)
-    cm = bond(matrix,atoms)
+    try:
+        G, atoms = pega_geom(folder+'/'+file)
+        atoms = np.array(atoms).astype(float)
+        matrix = distance_matrix(G)
+        cm = bond(matrix,atoms)
+    except:
+        cm = np.zeros((5,5))
     return cm              
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
