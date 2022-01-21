@@ -3,7 +3,7 @@ import sys
 from lx.tools import *
 
 
-def main():
+def interface():
     print("#                       #     #")
     print("#        ######   ####   #   # ")
     print("#        #       #    #   # #  ")
@@ -20,10 +20,11 @@ def main():
     print("\t4 - Check the progress of the calculations")
     print('EXCITON ANALYSIS:')
     print("\t5 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print('CONFORMATIONAL ANALYSIS:')
+    print("\t6 - Perform conformational search")
     print('OTHER FEATURES:')
-    print("\t6 - Perform long-range parameter tuning") 
-    print("\t7 - Retrieve last geometry from log file") 
-    print("\t8 - Distort a molecule in the direction of imaginary normal modes")
+    print("\t7 - Perform long-range parameter tuning") 
+    print("\t8 - Retrieve last geometry from log file") 
     print("\t9 - Abort my calculations")
     op = input()
     if op == '1':
@@ -83,7 +84,7 @@ def main():
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header, bottom)    
+        sample_geom(freqlog, num_geoms, T, header, bottom, True)    
     elif op == '2':
         batch() 
     elif op == '3':
@@ -122,8 +123,10 @@ def main():
     elif op == '5':
         ld()
     elif op == '6':
-        omega_tuning()
+        conformational()
     elif op == '7':
+        omega_tuning()
+    elif op == '8':
         freqlog = fetch_file("log",['.log'])
         base, _, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
@@ -131,17 +134,21 @@ def main():
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '8':
-        freqlog = fetch_file("frequency",['.log'])
-        base, temtd, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
-        T = float(input("Magnitude of the displacement in Å? \n")) #K
-        shake(freqlog,T,header)
     elif op == '9':
         abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")
+
+def main():
+    try:
+        freqlog = sys.argv[1]
+        G, atomos = pega_geom(freqlog)    
+        for i in range(len(atomos)):
+            print("{:2s}  {:.14f}  {:.14f}  {:.14f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+    except:
+        interface()
+    
+    
 
 
     
