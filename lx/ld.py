@@ -7,6 +7,7 @@ hbar = 6.582119514e-16       #eV s
 c    = 299792458             #m/s
 pi = np.pi
 ###############################################################
+
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_lifetime(xd,yd,dyd):
     #Integrates the emission spectrum
@@ -16,6 +17,7 @@ def calc_lifetime(xd,yd,dyd):
     dlife  = (1/taxa)*(error/taxa)
     return 1/taxa, dlife 
 ###############################################################
+
 ##CALCULATES FORSTER RADIUS####################################
 def radius(xa,ya,dya,xd,yd,dyd,kappa):
     #Speed of light
@@ -103,6 +105,7 @@ def difflen(radius, alpha, moment, r, dim, phi):
     #Conversion to nm
     ld = ld/10
     return ld
+
 ######## ANNIHILATION COEFs ###################################
 def KSSA(RF,r,tau,error_radius,error_life):
     label            = "Singlet-Singlet Annihilation"
@@ -125,13 +128,18 @@ def KTTA(RF,r,tau,error_radius,error_life):
     KTTA_cte, KTTA_error = KTTA_cte/s_to_ps, KTTA_error/s_to_ps  
     return KTTA_cte, KTTA_error, label
 ############################################################### 
+
 ##RETURNS ABS AND EMISSION TYPES###############################   
 def emi_abs_types(Abs,Emi):
-    abs_type  = open(Abs).readlines()[1].split(':')[-1].strip()
-    emi_init  = open(Emi).readlines()[1].split('->')[0].split()[-1].strip()
-    emi_final = open(Emi).readlines()[1].split('->')[1].split(':')[0].strip()
+    with open(Abs, 'r') as f:
+        abs_type  = f.readlines()[1].split(':')[-1].strip()
+    with open(Emi, 'r') as f:
+        line = f.readlines()[1].split('->')
+        emi_init  = line[0].split()[-1].strip()
+        emi_final = line[1].split(':')[0].strip()
     return abs_type,emi_init,emi_final
 ###############################################################
+
 ##Calculates average hopping distances and diffusion length for each case ####   
 def get_lds_dists(alpha,moment,rmin,Phi,mean_radius,error_radius):
     # convention: the last list element (with dimension 3) refers to the Amorphous one
@@ -141,6 +149,7 @@ def get_lds_dists(alpha,moment,rmin,Phi,mean_radius,error_radius):
     lds = [ [difflen(mean_radius,alpha, moment, dists[i][0], dists[i][1], Phi), 3*difflen(mean_radius,alpha, moment, dists[i][0], dists[i][1], Phi)*(error_radius/mean_radius)] for i in range(len(dists))]
     return lds,dists
 ###############################################################
+
 def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     #Gets the Transition Dipole Moment in atomic units
     try:
