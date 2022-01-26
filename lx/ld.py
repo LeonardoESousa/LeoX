@@ -108,25 +108,22 @@ def difflen(radius, alpha, moment, r, dim, phi):
 
 ######## ANNIHILATION COEFs ###################################
 def KSSA(RF,r,tau,error_radius,error_life):
-    label            = "Singlet-Singlet Annihilation"
     KSSA_cte         = (4*np.pi/tau)*((RF)**6/(r**3)) # Singlet-Singlet annihilation coef
     RF_6_power_error = np.sqrt(6*((error_radius/RF)**2))
     delta            = np.sqrt( RF_6_power_error**2 + (error_life/tau)**2)
     KSSA_error       = KSSA_cte*delta
     un               = 1E-24 # unit factor 1 AA^3 = 1E-24 cm^3
-    KSSA_cte, KSSA_error = KSSA_cte*un, KSSA_error*un
-    label            = "Annihilation Coefficient Singlet-Singlet: {:5.2e} +/- {:5.2e} ".format(KSSA_cte, KSSA_error) +" cm^3 s^-1\n"     
-    return KSSA_cte, KSSA_error, label
+    KSSA_cte, KSSA_error = KSSA_cte*un, KSSA_error*un     
+    return KSSA_cte, KSSA_error
     
 def KTTA(RF,r,tau,error_radius,error_life):
     KTTA_cte         = (4*np.pi/tau)*((RF)**6) # Triplet-Triplet annihilation coef
     RF_6_power_error = np.sqrt(6*((error_radius/RF)**2))
     delta            = np.sqrt( RF_6_power_error**2 + (error_life/tau)**2)
     KTTA_error       = KTTA_cte*delta
-    s_to_ps          = 1E+12
-    label            = "Annihilation Coefficient Triplet-Triplet: {:5.2e} +/- {:5.2e} ".format(KTTA_cte, KTTA_error) +" AA^6 ps^-1\n"     
-    KTTA_cte, KTTA_error = KTTA_cte/s_to_ps, KTTA_error/s_to_ps  
-    return KTTA_cte, KTTA_error, label
+    un               = 1E-48 # unit factor 1 AA^6 = 1E-48 cm^6
+    KTTA_cte, KTTA_error = KTTA_cte*un, KTTA_error*un  
+    return KTTA_cte, KTTA_error
 ############################################################### 
 
 ##RETURNS ABS AND EMISSION TYPES###############################   
@@ -143,7 +140,8 @@ def emi_abs_types(Abs,Emi):
 ##Calculates average hopping distances and diffusion length for each case ####   
 def get_lds_dists(alpha,moment,rmin,Phi,mean_radius,error_radius):
     # convention: the last list element (with dimension 3) refers to the Amorphous one
-    # dists' structure: [average distance,dimension,morphology label]  
+    # dists' structure: [average distance,dimension,morphology label] 
+    # lds'   structure: [ld , error ld] 
     dists = [[r_avg(alpha,moment,rmin,i),i,"%sD Crystal"%(i)] for i in range(1,4)] #Calculates average hopping distances for each case	
     dists.append([0.25*alpha*moment + 1.25*rmin,3,"Amorphous "])       
     lds = [ [difflen(mean_radius,alpha, moment, dists[i][0], dists[i][1], Phi), 3*difflen(mean_radius,alpha, moment, dists[i][0], dists[i][1], Phi)*(error_radius/mean_radius)] for i in range(len(dists))]
@@ -175,7 +173,8 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
         setting_spectras = rates_types[(abs_type, emi_init[0], emi_final)]
     except:
         print('The configuration:\nabs %s\nemi %s -> %s\nis not defined! Generating standard calculations anyway ...' %(abs_type,emi_init,emi_final))
-
+        setting_spectras = 'Only radius'
+        
     #Gets energies, intensities and errors for the donor and acceptor
     xa, ya, dya = data_abs[:,0], data_abs[:,1], data_abs[:,2]
     xd, yd, dyd = data_emi[:,0], data_emi[:,1], data_emi[:,2]
@@ -196,12 +195,12 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
         f.write("Avg. Dipole Moment:  {:.1f} a.u. \n".format(moment))
         
         if setting_spectras == "SSA":
-            KSSA_cte, KSSA_error, label = KSSA(mean_radius,rmin,mean_life,error_radius,error_life)
-            f.write(label)
+            KSSA_cte, KSSA_error = KSSA(mean_radius,rmin,mean_life,error_radius,error_life)
+            f.write("Annihilation Coefficient Singlet-Singlet: {:5.2e} +/- {:5.2e} ".format(KSSA_cte, KSSA_error) +" cm^3 s^-1\n")
             f.write("Morphology   Avg_Hop_Distance(AA)  Diffusion_Length(nm)\n")
             [f.write("{:}   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(dists[i][2], dists[i][0], lds[i][0], lds[i][1])) for i in range(len(dists))]           
         if setting_spectras == "TTA":
-            KTTA_cte, KTTA_error, label = KTTA(mean_radius,rmin,mean_life,error_radius,error_life)
-            f.write(label)
+            KTTA_cte, KTTA_error = KTTA(mean_radius,rmin,mean_life,error_radius,error_life)
+            f.write("Annihilation Coefficient Triplet-Triplet: {:5.2e} +/- {:5.2e} ".format(KTTA_cte, KTTA_error) +" cm^6 s^-1\n")
         if setting_spectras == "Only radius":
-            pass              
+            pass        
