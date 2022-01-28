@@ -482,7 +482,7 @@ def fetch_file(frase,ends):
     if len(files) == 0:
         fatal_error("No {} file found. Goodbye!".format(frase))
     freqlog = 'nada0022'    
-    for file in files:
+    for file in sorted(files):
         print("\n"+file)
         resp = input('Is this the {} file? y ou n?\n'.format(frase))
         if resp.lower() == 'y':
