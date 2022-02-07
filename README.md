@@ -1,4 +1,4 @@
-﻿# LeoX - Light-excited organic molecules: eXciton analysis package 
+﻿# LeoX - Light emission and exciton diffusion in organic molecules 
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/LeoX?style=plastic)]()
@@ -8,7 +8,7 @@
 
 
 
-A package for absorption and fluorescence spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length) and long-range separation parameter tuning. Interfaces with the Gaussian (09 or 16) package.
+A package for absorption and fluorescence spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length). Long-range separation parameter tuning. Stochastic conformational search.  Interfaces with the Gaussian (09 or 16) package.
 
 
 Table of Contents
@@ -39,15 +39,15 @@ Table of Contents
     - Calculates singlet exciton diffusion lengths.
 3.  Extra features:
     - Tunes the w parameter of long-range separated functionals.
-    - Extract slast geometry from Gaussian log file.
-    - Distorts a molecule's geometry in the direction of imaginary normal modes.
+    - Extracts last geometry from Gaussian log file.
+    - Runs a stochastic coformational search algorithm.
 
 
 ## What is necessary to use it?
 
  -  The program requires that the Gaussian quantum chemistry software (G09 or G16) be installed, as it interfaces with it.
 
--   The first step for running spectrum calculations is providing a Gaussian log file for a frequency calculation in the S0 state, if the goal is computing an absorption spectrum, or S1 state, if the objective is calculating a fluoresence spectrum. All frequencies must be real.  
+-   The first step for running spectrum calculations or conformational searches is providing a Gaussian log file for a frequency calculation in the S0 state, if the goal is computing an absorption spectrum, or S1 state, if the objective is calculating a fluoresence spectrum. All frequencies must be real.  
 
 -   To obtain estimates for Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and emission spectra calculations for the molecule of interest.
 
@@ -98,9 +98,17 @@ Once installed, you should be able to run the program from any folder by just us
 
     - Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. To calculate the Förster radius for transfers between different molecules, you must provide the fluorescence spectrum of the donor molecule and the absorption spectrum of the acceptor molecule. The fluorescence lifetime shown will correspond to that of the donor molecule.  
 
-3. For range separation tuning:
+4. For conformational searches:
+    
+    - Create a folder. Add a frequency Gaussian .log file. Include also a bash script file according to your batch system (follow examples for slurm and task spooler [here](https://github.com/LeonardoESousa/LeoX/tree/master/batch_examples)). 
+    - Run the `lx` command in the folder and choose option 6. Follow the instructions to set the calculation parameters. 
+    - Answer the queries to determine the parameters of the conformational search (level of theory, initial temperature, temperature step, number of rounds, number of sampled geometries at each round). 
+    - Once the search starts running, the file conformation.lx will show the conformations found thus far, along with the average energies and Boltzmann populations at 300 K of each. 
+    - After the search is over, a folder named Conformers is created with the geometries of each conformer written to a gaussian input file that can be used for further optimization. 
+
+3. For range separation parameter tuning:
 
     - Create a folder. Add either a Gaussian .log file or .com file (for any kind of calculation). Include also a bash script file according to your batch system (follow examples for slurm and task spooler [here](https://github.com/LeonardoESousa/LeoX/tree/master/batch_examples)). 
-    - Run the `lx` command in the folder and choose option 6. Follow the instructions to set the calculation parameters. 
+    - Run the `lx` command in the folder and choose option 7. Follow the instructions to set the calculation parameters. 
     - You may choose between a relaxed on unrelaxed tuning procedure. In the case of the former, geometry optimizations are run for each range separation parameter value. In the case of unrelaxed tuning, the geometry provided in the .log or .com file will be used for all calculations. 
  
