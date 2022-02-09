@@ -251,7 +251,9 @@ def rodar_freq(origin,nproc,mem,base,cm,batch_file):
     header = "%nproc={}\n%mem={}\n# freq=(noraman) nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     file = "Freq-"+str(origin)+"-.com"
     write_input(atomos,G,header,'',file)
-    subprocess.call(['bash', batch_file, file]) 
+    with open('cmd.sh', 'w') as f:
+        f.write('g16 '+file+'\n')
+    subprocess.call(['bash', batch_file, 'cmd.sh']) 
     hold_watch([file])
     log = file[:-3]+'log'
     with open(log, 'r') as f:
