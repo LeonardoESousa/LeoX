@@ -57,8 +57,10 @@ def hold_watch(files):
 
 ##RUNS CALCULATIONS############################################
 def rodar_opts(lista, batch_file): 
-    for file in lista:
-        subprocess.call(['bash', batch_file, file]) 
+    with open('cmd.sh', 'w') as f:
+        for file in lista:
+            f.write('g16 '+file+'\n')
+    subprocess.call(['bash', batch_file, 'cmd.sh']) 
     hold_watch(lista)
 ###############################################################
 
