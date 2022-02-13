@@ -236,7 +236,14 @@ def classify(nums,scfs,rotsx, rotsy, rotsz,cr0,first):
     engs   = engs[args]
     probs  = probs[args]
     exam   = exam[args]
-
+    rotx   = rotx[args]   
+    roty   = roty[args]
+    rotz   = rotz[args]
+    crix   = crix[args]
+    criy   = criy[args]
+    criz   = criz[args]
+    last   = last[args]
+    
     with open('conformation.lx', 'w') as f: 
         f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:8}  {:8}  {:8}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
         for i in range(len(probs)):
