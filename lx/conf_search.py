@@ -78,12 +78,13 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
         A = np.zeros((3*num_atom,1))
         numbers = []
         for i in range(0,len(F)):
-            scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-            normal = norm(scale=scale,loc=0)
-            #Displacements in  Å
-            q = normal.rvs()*1e10
-            numbers.append(q)
-            A += q*(np.expand_dims(NNC[:,i],axis=1))
+            if F[i] < 1000*(c*100*2*pi): 
+                scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
+                normal = norm(scale=scale,loc=0)
+                #Displacements in  Å
+                q = normal.rvs()*1e10
+                numbers.append(q)
+                A += q*(np.expand_dims(NNC[:,i],axis=1))
         numbers = np.round(np.array(numbers)[np.newaxis,:],4)
         A = np.reshape(A,(num_atom,3))
         Gfinal = A + G  
@@ -194,7 +195,7 @@ def classify(nums,scfs,rotsx, rotsy, rotsz,cr0,first):
         ROTZ = np.copy(rotz)
         for n in range(len(ROTX)):
             try:
-                cr = [max(crix[n],cr0[0]), max(criy[n],cr0[1]), max(criz[n],cr0[2])]
+                cr = [max(min(2*crix[n],cr0[0]),cr0[0]),max(min(2*crix[n],cr0[1]),cr0[1]),max(min(2*crix[n],cr0[2]),cr0[2])]
             except:
                 cr = cr0    
             distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
@@ -292,7 +293,7 @@ def main():
     cm        = get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
-    cr0 = [rotx/10, roty/10, rotz/10]
+    cr0 = [rotx/1000, roty/1000, rotz/1000]
     origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0,True)
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
