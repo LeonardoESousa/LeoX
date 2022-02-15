@@ -551,7 +551,7 @@ def omega_tuning():
 def conformational():
     freqlog = fetch_file('frequency',['.log'])
     F, _ = pega_freq(freqlog)
-    F_active = F[:30]
+    F_active = F[:40]
     T  = int(hbar*F_active[-1]/kb)
     DT = int(T/10)
     T, DT = str(T), str(DT)
