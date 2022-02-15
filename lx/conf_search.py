@@ -78,7 +78,7 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
         A = np.zeros((3*num_atom,1))
         numbers = []
         for i in range(0,len(F)):
-            if F[i] < 1000*(c*100*2*pi): 
+            if F[i] < 3000*(c*100*2*pi): 
                 scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
                 normal = norm(scale=scale,loc=0)
                 #Displacements in  Å

@@ -547,13 +547,15 @@ def omega_tuning():
     subprocess.Popen(['nohup', 'python3', folder+'/leow.py', geomlog, base, nproc, mem, omega1, passo, relax, script, '&'])
 ###############################################################
 
-##RUNS W TUNING################################################
+##RUNS CONFORMATIONAL SEARCH###################################
 def conformational():
     freqlog = fetch_file('frequency',['.log'])
-    _, _, nproc, mem, _, _ = busca_input(freqlog)
-    base = 'pm6'
-    T = '500'
-    DT = '100'
+    F, _ = pega_freq(freqlog)
+    F_active = F[:30]
+    T  = int(hbar*F_active[-1]/kb)
+    DT = int(T/10)
+    T, DT = str(T), str(DT)
+    base, _, nproc, mem, _, _ = busca_input(freqlog)
     print('This is the configuration taken from the file:\n')
     print('Functional/basis: {}'.format(base))
     print('%nproc='+nproc)    
