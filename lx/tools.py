@@ -3,6 +3,8 @@ import numpy as np
 import os
 import sys
 from scipy.stats import norm
+import time
+import subprocess
 
 ##SOME CONSTANTS##############################################
 epsilon0 = 8.854187817e-12   #F/m
@@ -495,18 +497,21 @@ def fetch_file(frase,ends):
    
 ##RUNS TASK MANAGER############################################
 def batch():
-    script = fetch_file('batch script?',['.sh'])    
-    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    script   = fetch_file('batch script?',['.sh'])    
+    num      = input("Number of jobs in each batch?\n")
+    limite   = input("Maximum number of jobs to be submitted simultaneously?\n")
+    gaussian = input('g16 or g09?\n')
     try:
-        limite = float(limite)
+        int(limite)
+        int(num)
     except:
-        fatal_error("It must be an integer. Goodbye!")
+        fatal_error("These must be integers. Goodbye!")
     
     import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
-        f.write(str(limite))
-    subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, '&'])
+        f.write(limite)
+    subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, num, gaussian, '&'])
 ###############################################################
 
 
@@ -540,11 +545,12 @@ def omega_tuning():
         relax  = default(relax,"Optimize at each step: yes. If ok, Enter. Otherwise, type n\n")
     
     script = fetch_file('batch script',['.sh'])    
+    gaussian = input('g16 or g09?\n')
     import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
         f.write('Running')
-    subprocess.Popen(['nohup', 'python3', folder+'/leow.py', geomlog, base, nproc, mem, omega1, passo, relax, script, '&'])
+    subprocess.Popen(['nohup', 'python3', folder+'/omega.py', geomlog, base, nproc, mem, omega1, passo, relax, script, gaussian, '&'])
 ###############################################################
 
 ##RUNS CONFORMATIONAL SEARCH###################################
@@ -573,6 +579,7 @@ def conformational():
     num_geoms = input("Number of geometries sampled at each round?\n")
     rounds    = input("Number of rounds?\n")
     limite    = input("Maximum number of jobs to be submitted simultaneously?\n")
+    gaussian  = input('g16 or g09?\n')
     try:
         int(limite)
         int(num_geoms)
@@ -583,7 +590,7 @@ def conformational():
         f.write(str(limite))
     import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
-    subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds, script, '&'])
+    subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds, script, gaussian, '&'])
 ###############################################################
 
 
@@ -778,4 +785,25 @@ def ld():
         print('Results can be found in the ld.lx file')
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
+###############################################################
+
+##CHECKS WHETHER JOBS ARE DONE#################################
+def hold_watch(files, log):
+    rodando = files.copy()
+    while len(rodando) > 0:
+        rodando = watcher(rodando,1)
+        if 'limit.lx' not in os.listdir('.'):
+            with open(log,'a') as f:
+                f.write('\n#Aborted!')
+            sys.exit()
+        time.sleep(30)    
+###############################################################
+
+##RUNS CALCULATIONS############################################
+def rodar_lista(lista, batch_file, gaussian, log): 
+    with open('cmd.sh', 'w') as f:
+        for file in lista:
+            f.write('{} {}\n'.format(gaussian,file))
+    subprocess.call(['bash', batch_file, 'cmd.sh']) 
+    hold_watch(lista, log)
 ###############################################################

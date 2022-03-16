@@ -3,16 +3,15 @@ import numpy as np
 import os
 import sys
 import subprocess
-from lx.tools import *
 import shutil
-import time
+import lx.tools
 
 ##GENERATES NEUTRAL INPUT######################################
 def gera_optcom(atomos,G,base,nproc,mem,omega,op):
     header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {}\n\nTITLE\n\n0 1\n".format(op)
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
     file = "OPT_"+omega+"_.com"
-    write_input(atomos,G,header,'',file)
+    lx.tools.write_input(atomos,G,header,'',file)
     return file
 ###############################################################
 
@@ -22,10 +21,10 @@ def gera_ioncom(atomos,G,base,nproc,mem,omega):
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
     file1 = "pos_"+omega+"_.com"
     file2 = "neg_"+omega+"_.com"
-    write_input(atomos,G,header,'',file1)
+    lx.tools.write_input(atomos,G,header,'',file1)
     header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) \n\nTITLE\n\n-1 2\n"
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
-    write_input(atomos,G,header,'',file2)
+    lx.tools.write_input(atomos,G,header,'',file2)
     return [file1,file2]
 ###############################################################
 
@@ -71,43 +70,32 @@ def pega_homo(file):
     return np.max(HOMOS)
 ###############################################################
 
-##CHECKS WHETHER JOBS ARE DONE#################################
-def hold_watch(files):
-    rodando = files.copy()
-    while len(rodando) > 0:
-        rodando = watcher(rodando,1)
-        if 'limit.lx' not in os.listdir('.'):
-            with open('omega.lx','a') as f:
-                f.write('#Aborted!')
-            sys.exit()
-        time.sleep(60)    
-###############################################################
-
 ##RUNS CALCULATIONS############################################
-def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file): 
+def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file,gaussian): 
     omega = "{:05.0f}".format(omega)
     file  = gera_optcom(atomos,G,base,nproc,mem,omega,op)
-    remover = [file]
-    rodando = watcher([file],1)
-    for file in rodando:
-        subprocess.call(['bash', batch_file, file]) 
-    hold_watch(rodando)
+    remover = []
     if op == 'opt':
-        G, atomos = pega_geom(file[:-3]+"log")
-    neutro      = pega_energia(file[:-3]+"log")
-    homo_neutro = pega_homo(file[:-3]+"log")  
-    files = gera_ioncom(atomos,G,base,nproc,mem,omega)
-    rodando = watcher(files,1)
-    for file in rodando:
-        subprocess.call(['bash', batch_file, file]) 
-    hold_watch(rodando)
-    for file in files:
+        lx.tools.rodar_lista([file], batch_file, gaussian, 'omega.lx')
+        G, atomos = lx.tools.pega_geom(file[:-3]+"log")
+        files = gera_ioncom(atomos,G,base,nproc,mem,omega)
+        lx.tools.rodar_lista(files, batch_file, gaussian, 'omega.lx')
+    else:
+        files = gera_ioncom(atomos,G,base,nproc,mem,omega)
+        lx.tools.rodar_lista([file]+files, batch_file, gaussian, 'omega.lx')
+
+    logs = files + [file]
+    for file in logs:
         remover.append(file)
-        if "pos" in file:
+        if "pos_" in file:
             cation     = pega_energia(file[:-3]+"log")
-        elif "neg" in file:
+        elif "neg_" in file:
             anion      = pega_energia(file[:-3]+"log")
-            homo_anion = pega_homo(file[:-3]+"log")        
+            homo_anion = pega_homo(file[:-3]+"log")
+        elif "OPT_" in file:
+            neutro      = pega_energia(file[:-3]+"log")
+            homo_neutro = pega_homo(file[:-3]+"log")
+
     try:
         os.mkdir("Logs")
     except:
@@ -138,19 +126,20 @@ def main():
     passo   = sys.argv[6]
     relax   = sys.argv[7]
     script  = sys.argv[8]
+    gaussian = sys.argv[9]
 
     try:
         int(nproc)
         passo  = float(passo)*10000
         omega1 = float(omega1)*10000
     except:
-        fatal_error('nproc, omega and step must be numbers. Goodbye!')
+        lx.tools.fatal_error('nproc, omega and step must be numbers. Goodbye!')
     if relax.lower() == 'y':
         op = 'opt'
     elif relax.lower() == 'n':
         op = ''
     else:
-        fatal_error('It must be either y or n. Goodbye!')    
+        lx.tools.fatal_error('It must be either y or n. Goodbye!')    
 
     omegas, Js = [], []
     oms, jotas = [], []
@@ -163,16 +152,16 @@ def main():
                     omegas.append(om)
                     Js.append(float(line[1]))
         menor = omegas[Js.index(min(Js))]
-        G, atomos = pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
+        G, atomos = lx.tools.pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
     except:
-        G, atomos  = pega_geom(geomlog)
+        G, atomos  = lx.tools.pega_geom(geomlog)
 
     while passo > 25:
         if omega1 in omegas:
             ind = omegas.index(omega1)
             J = Js[ind]
         else:
-            J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script)              
+            J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script,gaussian)              
             omegas.append(omega1)
             Js.append(J)  
         oms.append(omega1)
@@ -193,11 +182,11 @@ def main():
     write_tolog(omegas,Js,'#Done! Optimized value:')
     menor = omegas[Js.index(min(Js))]
     log = 'Logs/OPT_{:05.0f}_.log'.format(menor)
-    G, atomos = pega_geom(log)    
-    base, _, nproc, mem, scrf, _ = busca_input(log)
-    cm = get_cm(log)
+    G, atomos = lx.tools.pega_geom(log)    
+    base, _, nproc, mem, scrf, _ = lx.tools.busca_input(log)
+    cm = lx.tools.get_cm(log)
     header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
-    write_input(atomos,G, header,'', 'tuned_w.com')
+    lx.tools.write_input(atomos,G, header,'', 'tuned_w.com')
 
 
 

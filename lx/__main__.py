@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from lx.tools import *
-
+import lx.tools
 
 def interface():
     print("#                       #     #")
@@ -28,9 +27,9 @@ def interface():
     print("\t9 - Abort my calculations")
     op = input()
     if op == '1':
-        freqlog = fetch_file("frequency",['.log'])
-        cm = get_cm(freqlog)
-        base, temtd, nproc, mem, scrf, spec = busca_input(freqlog)
+        freqlog = lx.tools.fetch_file("frequency",['.log'])
+        cm = lx.tools.get_cm(freqlog)
+        base, temtd, nproc, mem, scrf, spec = lx.tools.busca_input(freqlog)
         if temtd == '':
             tda = 'TD'
         else:
@@ -44,11 +43,11 @@ def interface():
         print('%mem='+mem)
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':     
-            base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-            scrf  = default(scrf,"SCRF keyword is {}. If ok, Enter. Otherwise, type the desired one.\n".format(scrf))
-            cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
-            nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-            mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
+            base  = lx.tools.default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
+            scrf  = lx.tools.default(scrf,"SCRF keyword is {}. If ok, Enter. Otherwise, type the desired one.\n".format(scrf))
+            cm    = lx.tools.default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
+            nproc = lx.tools.default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
+            mem   = lx.tools.default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
             tamm  = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
             if tamm.lower() == 'y':
                 tda = 'TDA'
@@ -59,12 +58,12 @@ def interface():
         try:
             num_ex = int(num_ex)
         except:
-            fatal_error("This must be a number! Goodbye!")
+            lx.tools.fatal_error("This must be a number! Goodbye!")
         num_geoms = int(input("How many geometries to be sampled?\n"))
         pcm = input("Include state specific solvent approach? y or n?\n")
         if pcm.lower() == 'y':
             solv = input("What is the solvent? If you want to specify the dielectric constants yourself, type read.\n")
-            epss = set_eps(solv)
+            epss = lx.tools.set_eps(solv)
             if epss == '\n':
                 solv = "SOLVENT="+solv
             if temtd:
@@ -76,21 +75,21 @@ def interface():
                 header = "%nproc={}\n%mem={}\n# {} SCRF=(CorrectedLR,{}) {}=(NSTATES={})\n\n{}\n\n{}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
                 bottom = epss
         elif pcm == 'n':
-            epss = set_eps(scrf)
+            epss = lx.tools.set_eps(scrf)
             header = "%nproc={}\n%Mem={}\n# {}=(NStates={}) {} {} \n\n{}\n\n{}\n".format(nproc,mem,tda,num_ex,base,scrf,spec,cm)
             bottom = epss+'\n\n'
         else:
-            fatal_error("It should be y or n. Goodbye!")
+            lx.tools.fatal_error("It should be y or n. Goodbye!")
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
-            fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header, bottom, True)    
+            lx.tools.fatal_error("Have you heard about absolute zero? Goodbye!")
+        lx.tools.sample_geom(freqlog, num_geoms, T, header, bottom, True)    
     elif op == '2':
-        batch() 
+        lx.tools.batch() 
     elif op == '3':
-        opc = detect_sigma()
-        tipo = get_spec()
-        nr = get_nr() 
+        opc  = lx.tools.detect_sigma()
+        tipo = lx.tools.get_spec()
+        nr   = lx.tools.get_nr() 
         print('The spectrum will be run with the following parameters:\n')
         print('Spectrum type: {}'.format(tipo.title()))
         print('Standard deviation of: {:.3f} eV'.format(opc))
@@ -101,48 +100,48 @@ def interface():
             try:
                 opc = float(opc)
             except: 
-                fatal_error("It must be a number. Goodbye!")  
+                lx.tools.fatal_error("It must be a number. Goodbye!")  
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
-                fatal_error('It must be either one. Goodbye!')
+                lx.tools.fatal_error('It must be either one. Goodbye!')
         tipo = tipo[:3]
         if tipo == 'abs':
             estados = input("How many excited states?\n")
             try:
                 estados = int(estados)
             except:
-                fatal_error("It must be an integer! Goodbye!")
+                lx.tools.fatal_error("It must be an integer! Goodbye!")
         else:
             estados = 1
         num_ex = range(0,estados+1)
         num_ex = list(map(int,num_ex))
-        gather_data(opc, tipo)
-        spectra(tipo, num_ex, nr)
+        lx.tools.gather_data(opc, tipo)
+        lx.tools.spectra(tipo, num_ex, nr)
     elif op == '4':
-        andamento()
+        lx.tools.andamento()
     elif op == '5':
-        ld()
+        lx.tools.ld()
     elif op == '6':
-        conformational()
+        lx.tools.conformational()
     elif op == '7':
-        omega_tuning()
+        lx.tools.omega_tuning()
     elif op == '8':
-        freqlog = fetch_file("log",['.log'])
-        base, _, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
+        freqlog = lx.tools.fetch_file("log",['.log'])
+        base, _, nproc, mem, scrf, _ = lx.tools.busca_input(freqlog)
+        cm = lx.tools.get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
-        G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'','geom.lx')
+        G, atomos = lx.tools.pega_geom(freqlog)
+        lx.tools.write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
     elif op == '9':
-        abort_batch()
+        lx.tools.abort_batch()
     else:
-        fatal_error("It must be one of the options... Goodbye!")
+        lx.tools.fatal_error("It must be one of the options... Goodbye!")
 
 def main():
     try:
         freqlog = sys.argv[1]
-        G, atomos = pega_geom(freqlog)    
+        G, atomos = lx.tools.pega_geom(freqlog)    
         for i in range(len(atomos)):
             print("{:2s}  {:.14f}  {:.14f}  {:.14f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
     except:

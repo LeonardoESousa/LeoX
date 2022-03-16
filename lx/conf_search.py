@@ -4,9 +4,16 @@ import os
 import sys
 import subprocess
 import random
-from lx.tools import *
 import shutil
-import time
+import lx.tools
+from scipy.stats import norm
+
+c     = lx.tools.c
+pi    = lx.tools.pi
+hbar  = lx.tools.hbar
+hbar2 = lx.tools.hbar2
+kb    = lx.tools.kb
+
 
 def distance_matrix(G):
     matrix = np.zeros((1,np.shape(G)[0]))
@@ -35,7 +42,7 @@ def bond(matrix,atoms):
 
 def fingerprint(file,folder):
     try:
-        G, atoms = pega_geom(folder+'/'+file)
+        G, atoms = lx.tools.pega_geom(folder+'/'+file)
         atoms = np.array(atoms).astype(float)
         matrix = distance_matrix(G)
         cm = bond(matrix,atoms)
@@ -43,36 +50,14 @@ def fingerprint(file,folder):
         cm = np.zeros((5,5))
     return cm              
 
-##CHECKS WHETHER JOBS ARE DONE#################################
-def hold_watch(files):
-    rodando = files.copy()
-    while len(rodando) > 0:
-        rodando = watcher(rodando,1)
-        if 'limit.lx' not in os.listdir('.'):
-            with open('conformation.lx','a') as f:
-                f.write('\n#Aborted!')
-            sys.exit()
-        time.sleep(30)    
-###############################################################
-
-##RUNS CALCULATIONS############################################
-def rodar_opts(lista, batch_file): 
-    with open('cmd.sh', 'w') as f:
-        for file in lista:
-            f.write('g16 '+file+'\n')
-    subprocess.call(['bash', batch_file, 'cmd.sh']) 
-    hold_watch(lista)
-###############################################################
-
-
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
     lista = []
-    F, M = pega_freq(freqlog)
+    F, M = lx.tools.pega_freq(freqlog)
     F[F < 0] *= -1    
-    counter = start_counter()
-    G, atomos = pega_geom(freqlog)
-    NNC = pega_modos(G,freqlog)
+    counter = lx.tools.start_counter()
+    G, atomos = lx.tools.pega_geom(freqlog)
+    NNC = lx.tools.pega_modos(G,freqlog)
     num_atom = np.shape(G)[0]   
     for n in range(1,num_geoms+1):
         A = np.zeros((3*num_atom,1))
@@ -88,7 +73,7 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
         numbers = np.round(np.array(numbers)[np.newaxis,:],4)
         A = np.reshape(A,(num_atom,3))
         Gfinal = A + G  
-        write_input(atomos,Gfinal,header.replace("UUUUU",str(n)),bottom.replace("UUUUU",str(n)),"Geometry-"+str(n+counter)+"-.com")
+        lx.tools.write_input(atomos,Gfinal,header.replace("UUUUU",str(n)),bottom.replace("UUUUU",str(n)),"Geometry-"+str(n+counter)+"-.com")
         lista.append("Geometry-"+str(n+counter)+"-.com") 
     return lista      
 ############################################################### 
@@ -253,16 +238,13 @@ def classify(nums,scfs,rotsx, rotsy, rotsz,cr0,first):
 ###############################################################
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
-def rodar_freq(origin,nproc,mem,base,cm,batch_file):
+def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
     geomlog = 'Geometries/Geometry-'+str(origin)+'-.log'
-    G, atomos = pega_geom(geomlog) 
+    G, atomos = lx.tools.pega_geom(geomlog) 
     header = "%nproc={}\n%mem={}\n# freq=(noraman) nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     file = "Freq-"+str(origin)+"-.com"
-    write_input(atomos,G,header,'',file)
-    with open('cmd.sh', 'w') as f:
-        f.write('g16 '+file+'\n')
-    subprocess.call(['bash', batch_file, 'cmd.sh']) 
-    hold_watch([file])
+    lx.tools.write_input(atomos,G,header,'',file)
+    lx.tools.rodar_lista([file],batch_file,gaussian,'conformation.lx')
     log = file[:-3]+'log'
     with open(log, 'r') as f:
         for line in f:
@@ -283,14 +265,15 @@ def main():
     num_geoms = int(sys.argv[7])
     rounds    = int(sys.argv[8])
     script    = sys.argv[9]
-    
+    gaussian  = sys.argv[10]
+
     freq0 = freqlog
     try:
         os.mkdir('Geometries')
     except:
         pass    
     original_molecule = fingerprint(freqlog,'.')
-    cm        = get_cm(freqlog) 
+    cm        = lx.tools.get_cm(freqlog) 
     header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     scf, rotx, roty, rotz  = get_energy_origin(freqlog)
     cr0 = [rotx/1000, roty/1000, rotz/1000]
@@ -306,13 +289,13 @@ def main():
 
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
-        rodar_opts(lista,script)
+        lx.tools.rodar_lista(lista,script, gaussian, 'conformation.lx')
         nums, scfs, rotsx,rotsy,rotsz = get_energies('.',original_molecule)
         origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
         with open('conformation.lx', 'a') as f:
             f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
         if origin != 0:
-            log  = rodar_freq(origin,nproc,mem,base,cm,script)
+            log  = rodar_freq(origin,nproc,mem,base,cm,script,gaussian)
             if log != None:
                 freqlog = log
                 T0 = T
@@ -333,11 +316,11 @@ def main():
             freqlog = freq0    
         else:
             freqlog = 'Geometries/Geometry-{:.0f}-.log'.format(numero) 
-        _, _, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
+        _, _, nproc, mem, scrf, _ = lx.tools.busca_input(freqlog)
+        cm = lx.tools.get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
-        G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
+        G, atomos = lx.tools.pega_geom(freqlog)
+        lx.tools.write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
     
 
 
