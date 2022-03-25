@@ -53,25 +53,12 @@ def fingerprint(file,folder):
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
     lista = []
-    F, M = lx.tools.pega_freq(freqlog)
-    F[F < 0] *= -1    
     counter = lx.tools.start_counter()
-    G, atomos = lx.tools.pega_geom(freqlog)
-    NNC = lx.tools.pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]   
-    A = np.zeros((3*num_atom,num_geoms))
-    for i in range(0,len(F)):
-        if F[i] < 3000*(c*100*2*pi):
-            scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-            normal = norm(scale=scale,loc=0)
-            #Displacements in  Å
-            q = normal.rvs(size=num_geoms)*1e10
-            A += np.outer(NNC[:,i],q) 
-    for n in range(np.shape(A)[1]):
-        A1 = np.reshape(A[:,n],(num_atom,3))
-        Gfinal = A1 + G    
-        lx.tools.write_input(atomos,Gfinal,header.replace("UUUUU",str(n)),bottom.replace("UUUUU",str(n)),"Geometry-"+str(n+counter)+"-.com")
-        lista.append("Geometry-"+str(n+counter)+"-.com") 
+    _, atomos, A = lx.tools.sample_geometries(freqlog,num_geoms,T,3000)
+    for n in range(0,np.shape(A)[1],3):
+        Gfinal = A[:,n:n+3]
+        lx.tools.write_input(atomos,Gfinal,header.replace("UUUUU",str((n+3)//3)),bottom.replace("UUUUU",str((n+3)//3)),"Geometry-"+str((n+3)//3+counter)+"-.com")
+        lista.append("Geometry-"+str((n+3)//3+counter)+"-.com") 
     return lista      
 ############################################################### 
 

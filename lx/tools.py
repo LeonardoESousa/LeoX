@@ -214,46 +214,55 @@ def start_counter():
 ###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
-def sample_geom(freqlog, num_geoms, T, header, bottom,neg):
-    F, M = pega_freq(freqlog)
-    if F[0] < 0 and neg:
-        fatal_error("Imaginary frequency! Goodbye!")
-    else:
-        F[F < 0] *= -1    
+def sample_geometries(freqlog,num_geoms,T, limit=np.inf):
+    G, atomos = pega_geom(freqlog)
+    F, M      = pega_freq(freqlog)
+    F[F < 0] *= -1
+    NNC       = pega_modos(G,freqlog)
+    mask = F < limit*(c*100*2*pi)
+    F = F[mask]
+    NNC = NNC[:,mask]
+    num_atom  = np.shape(G)[0]
+    A = np.zeros((3*num_atom,num_geoms))
+    for i in range(0,len(F)):
+        scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
+        normal = norm(scale=scale,loc=0)
+        #Displacements in  Å
+        q = normal.rvs(size=num_geoms)*1e10
+        try:
+            numbers = np.hstack((numbers,q[:,np.newaxis]))
+        except:
+            numbers = q[:,np.newaxis]
+        A += np.outer(NNC[:,i],q)
+    for n in range(np.shape(A)[1]):
+        A1 = np.reshape(A[:,n],(num_atom,3))
+        try:
+            Gfinal = np.hstack((Gfinal,A1 + G))
+        except:
+            Gfinal = A1 + G     
+    numbers = np.round(numbers,4)
+    return numbers, atomos, Gfinal
+###############################################################
+
+##MAKES ENSEMBLE###############################################
+def make_ensemble(freqlog, num_geoms, T, header, bottom):
     try:
         os.mkdir('Geometries')
     except:
         pass        
-    counter = start_counter()
-    G, atomos = pega_geom(freqlog)
-    salva_geom(G,atomos)
-    NNC = pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]   
+    counter = start_counter()   
     print("\nGenerating geometries...\n")
+    numbers, atomos, A = sample_geometries(freqlog,num_geoms,T)
     with open('Magnitudes_{:.0f}K_.lx'.format(T), 'a') as file:
-        A = np.zeros((3*num_atom,num_geoms))
-        for i in range(0,len(F)):
-            scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-            normal = norm(scale=scale,loc=0)
-            #Displacements in  Å
-            q = normal.rvs(size=num_geoms)*1e10
-            try:
-                numbers = np.hstack((numbers,q[:,np.newaxis]))
-            except:
-                numbers = q[:,np.newaxis]
-            A += np.outer(NNC[:,i],q) 
-        numbers = np.round(numbers,4)
         np.savetxt(file, numbers, delimiter='\t', fmt='%s')
-        for n in range(np.shape(A)[1]):
-            A1 = np.reshape(A[:,n],(num_atom,3))
-            Gfinal = A1 + G  
-            write_input(atomos,Gfinal,header.replace("UUUUU",str(n)),bottom.replace("UUUUU",str(n)),"Geometries/Geometry-"+str(n+counter)+"-.com")
-            progress = 100*n/num_geoms
-            text = "{:2.1f}%".format(progress)
-            print(' ', text, "of the geometries done.",end="\r", flush=True)
-    
+    for n in range(0,np.shape(A)[1],3):
+        Gfinal = A[:,n:n+3]  
+        write_input(atomos,Gfinal,header.replace("UUUUU",str((n+3)//3)),bottom.replace("UUUUU",str((n+3)//3)),"Geometries/Geometry-"+str((n+3)//3+counter)+"-.com")
+        progress = 100*((n+3)//3)/num_geoms
+        text = "{:2.1f}%".format(progress)
+        print(' ', text, "of the geometries done.",end="\r", flush=True)
     print("\n\nDone! Ready to run.")   
-###############################################################
+################################################################
             
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc, tipo):

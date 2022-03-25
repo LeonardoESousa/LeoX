@@ -28,6 +28,9 @@ def interface():
     op = input()
     if op == '1':
         freqlog = lx.tools.fetch_file("frequency",['.log'])
+        F, _  = lx.tools.pega_freq(freqlog)
+        if F[0] < 0:
+            lx.tools.fatal_error("Imaginary frequency! Goodbye!")
         cm = lx.tools.get_cm(freqlog)
         base, temtd, nproc, mem, scrf, spec = lx.tools.busca_input(freqlog)
         if temtd == '':
@@ -83,7 +86,7 @@ def interface():
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             lx.tools.fatal_error("Have you heard about absolute zero? Goodbye!")
-        lx.tools.sample_geom(freqlog, num_geoms, T, header, bottom, True)    
+        lx.tools.make_ensemble(freqlog, num_geoms, T, header, bottom)    
     elif op == '2':
         lx.tools.batch() 
     elif op == '3':

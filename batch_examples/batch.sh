@@ -9,4 +9,4 @@ module load Gaussian/16
 export GAUSS_SCRDIR=/scratch/ledso/
 
 
-g16 $1
+bash $1
