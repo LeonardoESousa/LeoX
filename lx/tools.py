@@ -267,6 +267,7 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc, tipo):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
+    files = [i for i in files if 'Normal termination' in open('Geometries/'+i, 'r').read()]
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     with open("Samples.lx", 'w') as f:
         for file in files:
@@ -338,6 +339,15 @@ def naming(arquivo):
     return new_arquivo        
 ###############################################################
 
+##CALCULATES FLUORESCENCE LIFETIME IN S########################
+def calc_emi_rate(xd,yd,dyd):
+    #Integrates the emission spectrum
+    IntEmi = np.trapz(yd,xd)
+    taxa   = (1/hbar)*IntEmi
+    error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
+    return taxa, error 
+###############################################################
+
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
@@ -380,14 +390,13 @@ def spectra(tipo, num_ex, nr):
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
-    
+
     if tipo == 'emi':
         #Emission rate calculations
-        from lx.ld import calc_lifetime
-        mean_lifetime, error_lifetime = calc_lifetime(x, mean_y,sigma) 
-        segunda = '# Fluorescence Lifetime: {:5.2e} +/- {:5.2e} s^-1\n'.format(mean_lifetime,error_lifetime)
+        mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
+        segunda = '# Total Rate S1 -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(mean_rate,error_rate)
     else:
-        segunda = ''
+        segunda = '# Absorption from State: S0\n'
 
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
