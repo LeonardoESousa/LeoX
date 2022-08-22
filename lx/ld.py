@@ -30,7 +30,9 @@ def radius(xa,ya,dya,xd,yd,dyd,kappa):
     maxD = max(xd)
     MIN  = max(minA,minD)
     MAX  = min(maxA,maxD)
-
+    
+    if MIN > MAX:
+        return 0, 0 
     X = np.linspace(MIN, MAX, 1000)
     f1 = interp1d(xa, ya, kind='cubic')
     f2 = interp1d(xd, yd, kind='cubic')
