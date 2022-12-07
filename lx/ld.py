@@ -130,8 +130,7 @@ def KTTA(RF,r,tau,error_radius,error_life):
 
 ##RETURNS ABS AND EMISSION TYPES###############################   
 def emi_abs_types(Abs,Emi):
-    with open(Abs, 'r') as f:
-        abs_type  = f.readlines()[1].split(':')[-1].strip()
+    abs_type  = 'S0'
     with open(Emi, 'r') as f:
         line = f.readlines()[1].split('->')
         emi_init  = line[0].split()[-1].strip()
