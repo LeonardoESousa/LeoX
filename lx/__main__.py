@@ -103,7 +103,12 @@ def interface():
             try:
                 opc = float(opc)
             except: 
-                lx.tools.fatal_error("It must be a number. Goodbye!")  
+                lx.tools.fatal_error("It must be a number. Goodbye!")
+            nr = input("What is the refractive index?\n")
+            try:
+                nr = float(nr)
+            except: 
+                lx.tools.fatal_error("It must be a number. Goodbye!") 
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 lx.tools.fatal_error('It must be either one. Goodbye!')
