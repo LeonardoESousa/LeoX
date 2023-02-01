@@ -362,9 +362,13 @@ def spectra(tipo, num_ex, nr):
                 N += 1
             elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex:
                 line = line.split()
-                V.append(float(line[3]))
-                O.append(float(line[4]))
-                S.append(float(line[5]))
+                if float(line[3]) < 0:
+                    print('Ignoring geom with negative vertical transition!')
+                    N -= 1
+                else: 
+                    V.append(float(line[3]))
+                    O.append(float(line[4]))
+                    S.append(float(line[5]))
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
