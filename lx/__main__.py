@@ -151,7 +151,7 @@ def main():
         freqlog = sys.argv[1]
         G, atomos = lx.tools.pega_geom(freqlog)    
         for i in range(len(atomos)):
-            print("{:2s}  {:.14f}  {:.14f}  {:.14f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+            print("{:2s}  {:.7f}  {:.7f}  {:.7f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
     except:
         interface()
     
