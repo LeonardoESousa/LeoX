@@ -250,7 +250,7 @@ def main():
     cm        = lx.tools.get_cm(freqlog) 
     header    = f"%nproc={nproc}\n%mem={mem}\n# opt nosymm  {base} \n\nTitle\n\n{cm}\n"
     scf, rot = get_energy_origin(freqlog)
-    conformations = [Conformation(rot,scf,fingerprint(freqlog,'.')),0]
+    conformations = [Conformation(rot,scf,fingerprint(freqlog,'.'),0)]
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
         conformations = classify(conformations,'Geometries')
