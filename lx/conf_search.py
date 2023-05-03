@@ -64,23 +64,30 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
 
 ##GETS ENERGY FROM THE ORIGINAL FREQ LOG FILE##################
 def get_energy_origin(freqlog):
+    exc = 0
     with open(freqlog, 'r') as f:
         for line in f:
             if 'SCF Done:' in line:
                 line = line.split()
                 scf  = float(line[4])*27.2114
+            elif 'Total Energy,' in line:
+                line = line.split()
+                exc  = float(line[4])*27.2114    
             elif 'Rotational constants' in line:
                 line = line.split()
                 rot  = [float(line[3]),float(line[4]),float(line[5])]    
             elif 'Normal termination' in line:
-                return scf, rot[0], rot[1], rot[2]
+                if exc != 0:
+                    scf = exc
+                return scf, np.array([rot[0], rot[1], rot[2]])
 ###############################################################
 
 ##GETS ENERGIES FROM OPT LOG FILES#############################
 def get_energies(folder,original_molecule):
-    nums,scfs,rotsx, rotsy, rotsz = [], [], [], [], []
+    nums,scfs,rots = [], [], []
     files = [i for i in os.listdir(folder) if '.log' in i and 'Geometry' in i]
     for file in files:
+        exc = 0
         if np.array_equal(original_molecule, fingerprint(file,folder)):
             with open(folder+'/'+file, 'r') as f:
                 num = float(file.split('-')[1])
@@ -88,29 +95,26 @@ def get_energies(folder,original_molecule):
                     if 'SCF Done:' in line:
                         line = line.split()
                         scf  = float(line[4])*27.2114
+                    elif 'Total Energy,' in line:
+                        line = line.split()
+                        exc  = float(line[4])*27.2114    
                     elif 'Rotational constants' in line:
                         line = line.split()
-                        rotx = float(line[3])
-                        roty = float(line[4])
-                        rotz = float(line[5])
+                        rot  = [float(line[3]),float(line[4]),float(line[5])]
                     elif 'Normal termination' in line:
+                        if exc != 0:
+                            scf = exc
                         scfs.append(scf)
                         nums.append(num)
-                        rotsx.append(rotx)
-                        rotsy.append(roty)
-                        rotsz.append(rotz)
+                        rots.append(rot)
+                        
     for file in files:
         try:
             shutil.move(file, 'Geometries/'+file)
             shutil.move(file[:-3]+'com', 'Geometries/'+file[:-3]+'com')
         except:
             pass
-    nums = np.array(nums)
-    scfs = np.array(scfs)
-    rotsx = np.array(rotsx)
-    rotsy = np.array(rotsy)
-    rotsz = np.array(rotsz)
-    return nums, scfs, rotsx, rotsy, rotsz
+    return np.array(nums), np.array(scfs), np.array(rots)
 ###############################################################
 
 def measure(vec1,vec2,cr):
@@ -121,105 +125,93 @@ def measure(vec1,vec2,cr):
     distance =  np.heaviside(dist,0)   
     return distance
 
-##CLASSIFIES THE VARIOUS OPTIMIZED STRUCTURES##################
-def classify(nums,scfs,rotsx, rotsy, rotsz,cr0,first):
-    try:
-        assert not first
-        data = np.loadtxt('conformation.lx')
-        if len(np.shape(data)) > 1:
-            engs =  data[:,1].flatten()
-            rotx =  data[:,4].flatten()
-            roty =  data[:,5].flatten() 
-            rotz =  data[:,6].flatten()
-            last =  data[:,10].flatten()
-            crix =  data[:,7].flatten()
-            criy =  data[:,8].flatten()
-            criz =  data[:,9].flatten()
-            exam =  data[:,11].flatten()
-        else:
-            engs = np.array([data[1]])
-            rotx = np.array([data[4]])
-            roty = np.array([data[5]])
-            rotz = np.array([data[6]]) 
-            last = np.array([data[10]])
-            crix = np.array([data[7]])
-            criy = np.array([data[8]])
-            criz = np.array([data[9]])
-            exam = np.array([data[11]])
-    except:
-        rotx = np.array([])
-        roty = np.array([])
-        rotz = np.array([])
-        engs = np.array([])
-        last = np.array([])
-        crix = np.array([])
-        criy = np.array([])
-        criz = np.array([])
-        exam = np.array([])
-    new = []
-    for m in range(len(rotsx)):
-        distances = []   
-        ROTX = np.copy(rotx)
-        ROTY = np.copy(roty)
-        ROTZ = np.copy(rotz)
-        for n in range(len(ROTX)):
-            try:
-                cr = [max(min(2*crix[n],cr0[0]),cr0[0]),max(min(2*crix[n],cr0[1]),cr0[1]),max(min(2*crix[n],cr0[2]),cr0[2])]
-            except:
-                cr = cr0    
-            distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
-            distances.append(distance)
-        try:
-            a = distances.index(0)
-            exam[a] = nums[m]
-            engs[a] = (last[a]*engs[a] + scfs[m])/(last[a]+1)
-            x2      = (last[a]*(crix[a]**2 +rotx[a]**2) + rotsx[m]**2)/(last[a]+1)
-            y2      = (last[a]*(criy[a]**2 +roty[a]**2) + rotsy[m]**2)/(last[a]+1)
-            z2      = (last[a]*(criz[a]**2 +rotz[a]**2) + rotsz[m]**2)/(last[a]+1)
-            rotx[a] = (last[a]*rotx[a] + rotsx[m])/(last[a]+1)
-            roty[a] = (last[a]*roty[a] + rotsy[m])/(last[a]+1)
-            rotz[a] = (last[a]*rotz[a] + rotsz[m])/(last[a]+1)    
-            crix[a] = np.sqrt(x2 -rotx[a]**2)
-            criy[a] = np.sqrt(y2 -roty[a]**2)
-            criz[a] = np.sqrt(z2 -rotz[a]**2)
-            last[a] += 1
-        except:
-            new.append(nums[m])
-            rotx  = np.append(rotx,rotsx[m])
-            roty  = np.append(roty,rotsy[m])
-            rotz  = np.append(rotz,rotsz[m])
-            crix  = np.append(crix,0)
-            criy  = np.append(criy,0)
-            criz  = np.append(criz,0) 
-            engs  = np.append(engs,scfs[m])
-            last  = np.append(last,1)
-            exam  = np.append(exam,nums[m])
+class Conformation:
+    def __init__(self,rot,energy,identity,num) -> None:
+        self.rot = rot[np.newaxis,:]
+        self.energy = [energy]
+        self.identity = identity
+        self.std = rot/1000
+        self.num = [num]
 
-    try:
-        origin = random.choice(new)
-    except:
-        origin = 0
+    def add_rot(self,rot,num,energy):
+        self.rot = np.vstack((self.rot,rot[np.newaxis,:]))
+        newstd = np.std(self.rot,axis=0)    
+        #get higher std
+        self.std = np.where(newstd > self.std, newstd, self.std)
+        self.num.append(num)
+        self.energy.append(energy)
 
-    probs  = np.exp(-1*(engs - min(engs))/0.026)
-    probs  /= np.sum(probs)
-    args   = np.argsort(engs)
-    engs   = engs[args]
-    probs  = probs[args]
-    exam   = exam[args]
-    rotx   = rotx[args]   
-    roty   = roty[args]
-    rotz   = rotz[args]
-    crix   = crix[args]
-    criy   = criy[args]
-    criz   = criz[args]
-    last   = last[args]
-    
-    with open('conformation.lx', 'w') as f: 
+    def merge_rot(self,rot):
+        self.rot = np.vstack((self.rot,rot))
+        newstd = np.std(self.rot,axis=0)
+        #get higher std
+        self.std = np.where(newstd > self.std, newstd, self.std)
+
+
+    def get_avg(self):
+        return np.mean(self.rot,axis=0)  
+
+
+
+def internal_comparison(conformations):
+    remove = []
+    for i in range(len(conformations)-1):
+        for j in range(i+1,len(conformations)):
+            distance = measure(conformations[i].get_avg(),conformations[j].get_avg(),conformations[j].std+conformations[i].std)
+            if distance == 0:
+                conformations[i].num += conformations[j].num
+                conformations[i].energy += conformations[j].energy
+                conformations[i].merge_rot(conformations[j].rot)
+                remove.append(j)
+                break
+    # remove elements from list whose index is in remove
+    conformations = [i for j, i in enumerate(conformations) if j not in remove]
+    return conformations        
+     
+
+def classify(conformations,folder):
+    nums, scfs, rots = get_energies(folder,conformations[0].identity)
+    for i in range(rots.shape[0]):
+        for conformation in conformations:
+            distance = measure(rots[i,:],conformation.get_avg(),conformation.std)
+            if distance == 0:
+                conformation.add_rot(rots[i,:],nums[i],scfs[i])
+                break
+            conformations.append(Conformation(rots[i,:],scfs[i],conformations[0].identity,nums[i])) 
+    if len(conformations) > 1:
+        conformations  = internal_comparison(conformations)           
+    return conformations
+
+def write_report(conformations,round,total_rounds,temp):
+    engs = []
+    for conformation in conformations:
+        engs.append(np.mean(conformation.energy))
+    engs = np.array(engs)    
+    argsort = np.argsort(engs)
+    engs = engs[argsort]
+    #sort conformations as list
+    conformations = [conformations[i] for i in argsort]
+    deltae = engs - min(engs)
+    probs = np.exp(-(deltae)/(0.026))
+    probs = probs/sum(probs)
+
+    with open('conformation.lx','w') as f:
         f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:8}  {:8}  {:8}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
-        for i in range(len(probs)):
-            f.write('{:<6}  {:<10.3f}  {:<10.3f}  {:<12.1f}  {:<10.7f}  {:<10.7f}  {:<10.7f}  {:<8.2e}  {:<8.2e}  {:<8.2e}  {:<6.0f}  {:<6.0f}\n'.format(i+1,engs[i],engs[i] -min(engs),100*probs[i],rotx[i],roty[i],rotz[i], crix[i], criy[i], criz[i], last[i],exam[i]))
-    return int(origin), exam
-###############################################################
+        for i in range(len(conformations)):
+            rot = conformations[i].get_avg()
+            std = conformations[i].std
+            last = conformations[i].num[-1]
+            total= len(conformations[i].num)
+            f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<8.2e}  {std[1]:<8.2e}  {std[2]:<8.2e}  {total:<6.0f}  {last:<6.0f}\n')
+        f.write(f'\n#Round {round}/{total_rounds} Temperature: {temp} K')    
+
+
+#for n in range(len(ROTX)):
+#    try:
+#        cr = [max(min(2*crix[n],cr0[0]),cr0[0]),max(min(2*crix[n],cr0[1]),cr0[1]),max(min(2*crix[n],cr0[2]),cr0[2])]
+#    except:
+#        cr = cr0    
+#    distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
@@ -238,7 +230,6 @@ def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
                 return None
 ###############################################################
 
-
 def main():
     freqlog   = sys.argv[1]
     base      = sys.argv[2]
@@ -256,33 +247,30 @@ def main():
         os.mkdir('Geometries')
     except:
         pass    
-    original_molecule = fingerprint(freqlog,'.')
     cm        = lx.tools.get_cm(freqlog) 
-    header    = "%nproc={}\n%mem={}\n# opt nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
-    scf, rotx, roty, rotz  = get_energy_origin(freqlog)
-    cr0 = [rotx/1000, roty/1000, rotz/1000]
-    origin, conformation = classify(np.array([0]),np.array([scf]), np.array([rotx]),np.array([roty]),np.array([rotz]),cr0,True)
+    header    = f"%nproc={nproc}\n%mem={mem}\n# opt nosymm  {base} \n\nTitle\n\n{cm}\n"
+    scf, rot = get_energy_origin(freqlog)
+    conformations = [Conformation(rot,scf,fingerprint(freqlog,'.')),0]
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
-        nums, scfs, rotsx, rotsy, rotsz = get_energies('Geometries',original_molecule)
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
+        conformations = classify(conformations,'Geometries')
     else:
         pass    
 
     T0 = T
-
+    groups = len(conformations)
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
         lx.tools.rodar_lista(lista,script, gaussian, 'conformation.lx')
-        nums, scfs, rotsx,rotsy,rotsz = get_energies('.',original_molecule)
-        origin, conformation  = classify(nums,scfs,rotsx,rotsy,rotsz,cr0,False)
-        with open('conformation.lx', 'a') as f:
-            f.write('\n#Round {}/{} Temperature: {} K'.format(i+1,rounds,T0))    
-        if origin != 0:
-            log  = rodar_freq(origin,nproc,mem,base,cm,script,gaussian)
+        conformations  = classify(conformations,'.')
+        write_report(conformations,i+1,rounds,T0)
+        
+        if len(conformations) != groups:
+            log  = rodar_freq(conformations[-1].num[-1],nproc,mem,base,cm,script,gaussian)
             if log != None:
                 freqlog = log
                 T0 = T
+            groups = len(conformations)    
         else:
             T0 += DT
 
@@ -294,8 +282,8 @@ def main():
     except:
         pass    
 
-    for i in range(len(conformation)):
-        numero  = conformation[i]
+    for i in range(len(conformations)):
+        numero  = conformations[i].num[-1]
         if numero == 0:
             freqlog = freq0    
         else:
