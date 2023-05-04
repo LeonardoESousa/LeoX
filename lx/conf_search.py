@@ -202,7 +202,7 @@ def write_report(conformations,round,total_rounds,temp):
             std = conformations[i].std
             last = conformations[i].num[-1]
             total= len(conformations[i].num)
-            f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<8.2e}  {std[1]:<8.2e}  {std[2]:<8.2e}  {total:<6.0f}  {last:<6.0f}\n')
+            f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae[i]:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<8.2e}  {std[1]:<8.2e}  {std[2]:<8.2e}  {total:<6.0f}  {last:<6.0f}\n')
         f.write(f'\n#Round {round}/{total_rounds} Temperature: {temp} K')    
 
 
@@ -215,10 +215,10 @@ def write_report(conformations,round,total_rounds,temp):
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
-    geomlog = 'Geometries/Geometry-'+str(origin)+'-.log'
+    geomlog = f'Geometries/Geometry-{origin:.0f}-.log'
     G, atomos = lx.tools.pega_geom(geomlog) 
     header = "%nproc={}\n%mem={}\n# freq=(noraman) nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
-    file = "Freq-"+str(origin)+"-.com"
+    file = f"Freq-{origin:.0f}-.com"
     lx.tools.write_input(atomos,G,header,'',file)
     lx.tools.rodar_lista([file],batch_file,gaussian,'conformation.lx')
     log = file[:-3]+'log'
@@ -241,7 +241,7 @@ def main():
     rounds    = int(sys.argv[8])
     script    = sys.argv[9]
     gaussian  = sys.argv[10]
-
+    T0 = T
     freq0 = freqlog
     try:
         os.mkdir('Geometries')
@@ -254,10 +254,11 @@ def main():
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
     if len(files) > 0:
         conformations = classify(conformations,'Geometries')
+        write_report(conformations,0,rounds,T0)
     else:
         pass    
 
-    T0 = T
+    
     groups = len(conformations)
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
@@ -292,7 +293,7 @@ def main():
         cm = lx.tools.get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
         G, atomos = lx.tools.pega_geom(freqlog)
-        lx.tools.write_input(atomos,G,header,'','Conformers/Group_{}_.com'.format(i+1))
+        lx.tools.write_input(atomos,G,header,'','Conformers/Geometry_{}_.com'.format(i+1))
     
 
 
