@@ -196,7 +196,7 @@ def write_report(conformations,round,total_rounds,temp):
     probs = probs/sum(probs)
 
     with open('conformation.lx','w') as f:
-        f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:8}  {:8}  {:8}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
+        f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:10}  {:10}  {:10}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
         for i in range(len(conformations)):
             rot = conformations[i].get_avg()
             std = conformations[i].std
