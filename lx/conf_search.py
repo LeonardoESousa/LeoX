@@ -202,16 +202,9 @@ def write_report(conformations,round,total_rounds,temp):
             std = conformations[i].std
             last = conformations[i].num[-1]
             total= len(conformations[i].num)
-            f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae[i]:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<8.2e}  {std[1]:<8.2e}  {std[2]:<8.2e}  {total:<6.0f}  {last:<6.0f}\n')
+            f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae[i]:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<10.7f}  {std[1]:<10.7f}  {std[2]:<10.7f}  {total:<6.0f}  {last:<6.0f}\n')
         f.write(f'\n#Round {round}/{total_rounds} Temperature: {temp} K')    
 
-
-#for n in range(len(ROTX)):
-#    try:
-#        cr = [max(min(2*crix[n],cr0[0]),cr0[0]),max(min(2*crix[n],cr0[1]),cr0[1]),max(min(2*crix[n],cr0[2]),cr0[2])]
-#    except:
-#        cr = cr0    
-#    distance = measure([rotsx[m], rotsy[m], rotsz[m]], [ROTX[n],ROTY[n],ROTZ[n]],cr)
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
@@ -220,7 +213,7 @@ def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
     header = "%nproc={}\n%mem={}\n# freq=(noraman) nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
     file = f"Freq-{origin:.0f}-.com"
     lx.tools.write_input(atomos,G,header,'',file)
-    lx.tools.rodar_lista([file],batch_file,gaussian,'conformation.lx')
+    lx.tools.rodar_lista([file],batch_file,gaussian,'conformation.lx',1)
     log = file[:-3]+'log'
     with open(log, 'r') as f:
         for line in f:
@@ -239,16 +232,22 @@ def main():
     DT        = float(sys.argv[6])
     num_geoms = int(sys.argv[7])
     rounds    = int(sys.argv[8])
-    script    = sys.argv[9]
-    gaussian  = sys.argv[10]
+    numjobs   = int(sys.argv[9])
+    script    = sys.argv[10]
+    gaussian  = sys.argv[11]
     T0 = T
     freq0 = freqlog
+    if 'td' in base.lower():
+        opt = '=loose'
+    else:
+        opt = ''    
+    
     try:
         os.mkdir('Geometries')
     except:
         pass    
     cm        = lx.tools.get_cm(freqlog) 
-    header    = f"%nproc={nproc}\n%mem={mem}\n# opt nosymm  {base} \n\nTitle\n\n{cm}\n"
+    header    = f"%nproc={nproc}\n%mem={mem}\n# opt{opt} nosymm  {base} \n\nTitle\n\n{cm}\n"
     scf, rot = get_energy_origin(freqlog)
     conformations = [Conformation(rot,scf,fingerprint(freqlog,'.'),0)]
     files = [i for i in os.listdir('Geometries') if 'Geometry' in i and '.log' in i]
@@ -262,7 +261,7 @@ def main():
     groups = len(conformations)
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
-        lx.tools.rodar_lista(lista,script, gaussian, 'conformation.lx')
+        lx.tools.rodar_lista(lista,script, gaussian, 'conformation.lx',numjobs)
         conformations  = classify(conformations,'.')
         write_report(conformations,i+1,rounds,T0)
         

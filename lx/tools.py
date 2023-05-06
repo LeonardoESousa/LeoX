@@ -598,19 +598,19 @@ def conformational():
     script    = fetch_file('batch script',['.sh'])    
     num_geoms = input("Number of geometries sampled at each round?\n")
     rounds    = input("Number of rounds?\n")
-    limite    = input("Maximum number of jobs to be submitted simultaneously?\n")
+    numjobs   = input("Number of jobs in each batch?\n")
     gaussian  = input('g16 or g09?\n')
     try:
-        int(limite)
         int(num_geoms)
         int(rounds)
+        int(numjobs)
     except:
         fatal_error("These must be integers. Goodbye!")
     with open('limit.lx','w') as f:
-        f.write(str(limite))
+        f.write('Running')
     import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
-    subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds, script, gaussian, '&'])
+    subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds,numjobs, script, gaussian, '&'])
 ###############################################################
 
 
@@ -820,10 +820,18 @@ def hold_watch(files, log):
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
-def rodar_lista(lista, batch_file, gaussian, log): 
-    with open('cmd.sh', 'w') as f:
-        for file in lista:
-            f.write('{} {}\n'.format(gaussian,file))
-    subprocess.call(['bash', batch_file, 'cmd.sh']) 
+def rodar_lista(lista, batch_file, gaussian, log, num): 
+    #number of scripts is integer division of number of files by num
+    n = len(lista)//num
+    for i in range(n):
+        with open(f'cmd_{i}.sh', 'w') as f:
+            for file in lista[i*num:(i+1)*num]:
+                f.write('{} {}\n'.format(gaussian,file))
+        subprocess.call(['bash', batch_file, f'cmd_{i}.sh']) 
+    if len(lista)%num != 0:
+        with open(f'cmd_{n+1}.sh', 'w') as f:
+            for file in lista[n*num:]:
+                f.write('{} {}\n'.format(gaussian,file))
+        subprocess.call(['bash', batch_file, f'cmd_{n+1}.sh'])
     hold_watch(lista, log)
 ###############################################################
