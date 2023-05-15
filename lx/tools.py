@@ -820,7 +820,7 @@ def hold_watch(files, log):
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
-def rodar_lista(lista, batch_file, gaussian, log, num): 
+def rodar_lista(lista, batch_file, gaussian, log, num=1): 
     #number of scripts is integer division of number of files by num
     n = len(lista)//num
     for i in range(n):

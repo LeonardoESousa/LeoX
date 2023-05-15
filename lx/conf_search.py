@@ -292,7 +292,7 @@ def main():
         cm = lx.tools.get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
         G, atomos = lx.tools.pega_geom(freqlog)
-        lx.tools.write_input(atomos,G,header,'','Conformers/Geometry_{}_.com'.format(i+1))
+        lx.tools.write_input(atomos,G,header,'','Conformers/Geometry-{}-.com'.format(i+1))
     
 
 
