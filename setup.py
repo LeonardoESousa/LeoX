@@ -18,7 +18,7 @@ URL = 'https://github.com/LeonardoESousa/LeoX'
 EMAIL = 'leonardo.sousa137@gmail.com'
 AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.4.0'
+VERSION = '0.5.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = ['numpy', 'scipy', 'pandas']
