@@ -215,9 +215,46 @@ def start_counter():
 ###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
-def sample_geometries(freqlog,num_geoms,T, limit=np.inf):
+def distort(freqlog):
+    num_geoms = 1
+    T = 300
     G, atomos = pega_geom(freqlog)
     F, M      = pega_freq(freqlog)
+    NNC       = pega_modos(G,freqlog)
+    num_atom  = np.shape(G)[0]
+    A = np.zeros((3*num_atom,num_geoms))
+    # check for imaginary frequencies
+    if np.all(F > 0):
+        fatal_error("No imaginary frequencies found. Exiting...")
+    for i in range(0,len(F)):
+        if F[i] < 0:
+            f = -1*F[i]
+            q = 3*np.sqrt(hbar2/(2*M[i]*f*np.tanh(hbar*f/(2*kb*T))))
+            q = np.array(q)
+            A += np.outer(NNC[:,i],q)
+    for n in range(np.shape(A)[1]):
+        A1 = np.reshape(A[:,n],(num_atom,3))
+        try:
+            Gfinal = np.hstack((Gfinal,A1 + G))
+        except:
+            Gfinal = A1 + G
+    base, _, nproc, mem, scrf, spec = busca_input(freqlog)
+    cm = get_cm(freqlog)
+    header = "%nproc={}\n%mem={}\n# {} opt freq=noraman\n\nDISTORTED GEOM\n\n{}\n".format(nproc,mem,base,cm)
+    bottom = '\n'
+    for n in range(0,np.shape(A)[1],3):
+        Gfinal = Gfinal[:,n:n+3]
+        write_input(atomos,Gfinal,header,bottom,"distorted.com")
+    print("New input file written to distorted.com")    
+###############################################################
+
+##SAMPLES GEOMETRIES###########################################
+def sample_geometries(freqlog,num_geoms,T, limit=np.inf, warning=True):
+    G, atomos = pega_geom(freqlog)
+    F, M      = pega_freq(freqlog)
+    # check for negative frequencies
+    if warning and np.any(F < 0):
+        fatal_error("Negative frequencies detected. Check your frequency file. Goodbye.")
     F[F < 0] *= -1
     NNC       = pega_modos(G,freqlog)
     mask = F < limit*(c*100*2*pi)

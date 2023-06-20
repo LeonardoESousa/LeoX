@@ -22,9 +22,10 @@ def interface():
     print('CONFORMATIONAL ANALYSIS:')
     print("\t6 - Perform conformational search")
     print('OTHER FEATURES:')
-    print("\t7 - Perform long-range parameter tuning") 
-    print("\t8 - Retrieve last geometry from log file") 
-    print("\t9 - Abort my calculations")
+    print("\t7 - Perform long-range parameter tuning")
+    print("\t8 - Get rid of imaginary frequencies")  
+    print("\t9 - Retrieve last geometry from log file") 
+    print("\t10 - Abort my calculations")
     op = input()
     if op == '1':
         freqlog = lx.tools.fetch_file("frequency",['.log'])
@@ -134,6 +135,9 @@ def interface():
     elif op == '7':
         lx.tools.omega_tuning()
     elif op == '8':
+        freqlog = lx.tools.fetch_file("Frequency log with imaginary frequencies",['.log'])
+        lx.tools.distort(freqlog)    
+    elif op == '9':
         freqlog = lx.tools.fetch_file("log",['.log'])
         base, _, nproc, mem, scrf, _ = lx.tools.busca_input(freqlog)
         cm = lx.tools.get_cm(freqlog)
@@ -141,7 +145,7 @@ def interface():
         G, atomos = lx.tools.pega_geom(freqlog)
         lx.tools.write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '9':
+    elif op == '10':
         lx.tools.abort_batch()
     else:
         lx.tools.fatal_error("It must be one of the options... Goodbye!")
