@@ -54,7 +54,7 @@ def fingerprint(file,folder):
 def make_geoms(freqlog, num_geoms, T, header, bottom):
     lista = []
     counter = lx.tools.start_counter()
-    _, atomos, A = lx.tools.sample_geometries(freqlog,num_geoms,T,3000)
+    _, atomos, A = lx.tools.sample_geometries(freqlog,num_geoms,T,3000,warning=False)
     for n in range(0,np.shape(A)[1],3):
         Gfinal = A[:,n:n+3]
         lx.tools.write_input(atomos,Gfinal,header.replace("UUUUU",str((n+3)//3)),bottom.replace("UUUUU",str((n+3)//3)),"Geometry-"+str((n+3)//3+counter)+"-.com")
