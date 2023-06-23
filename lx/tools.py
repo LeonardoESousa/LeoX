@@ -252,6 +252,7 @@ def distort(freqlog):
 def double_check(freqlog):
     nproc, mem, header = get_input_params(freqlog)
     header = header.lower()
+    optfreqissue = False
     if "opt" in header and 'freq' in header and 'iop(' in header:
         optfreqissue = True
     with open(freqlog, 'r') as f:
