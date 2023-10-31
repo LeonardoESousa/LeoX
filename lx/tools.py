@@ -248,30 +248,36 @@ def distort(freqlog):
     print("New input file written to distorted.com")    
 ###############################################################
 
+
 ##CHECKS FREQ FILES############################################
 def double_check(freqlog):
-    nproc, mem, header = get_input_params(freqlog)
+    _, _, header = get_input_params(freqlog)
     header = header.lower()
     optfreqissue = False
+    stationary = False
     if "opt" in header and 'freq' in header and 'iop(' in header:
         optfreqissue = True
     with open(freqlog, 'r') as f:
         for line in f:
-            if "Non-Optimized Parameters" in line:
-                print('*'*50)
-                print("WARNING: Non-optimized parameters detected in your frequency file.")
-                print('Even though the frequencies may be all real, your structure is still not fully optimized.')
-                print('This may lead to inaccurate results.')
-                if optfreqissue:
-                    print('In your case, this may be due to running an opt freq calculation using a single input file and IOP options.')
-                    print('Gaussian does not carry the IOP options to the frequency calculation when using a single input file.')
-                    print('To avoid this issue, run the optimization and frequency calculations separately.')
-                else:
-                    print('To learn more about this issue, check https://gaussian.com/faq3/ .')        
-                print('Proceed at your own risk.')
-                print('*'*50)
-                print('\n')
-###############################################################              
+            if "Stationary point found" in line:
+                stationary = True
+            elif all(["Item","Value","Threshold","Converged?"]) in line:
+                stationary = False
+    if not stationary:
+        print('*'*50)
+        print("WARNING: Non-optimized parameters detected in your frequency file.")
+        print('Even though the frequencies may be all real, your structure is still not fully optimized.')
+        print('This may lead to inaccurate results.')
+        if optfreqissue:
+            print('In your case, this may be due to running an opt freq calculation using a single input file and IOP options.')
+            print('Gaussian does not carry the IOP options to the frequency calculation when using a single input file.')
+            print('To avoid this issue, run the optimization and frequency calculations separately.')
+        else:
+            print('To learn more about this issue, check https://gaussian.com/faq3/ .')
+        print('Proceed at your own risk.')
+        print('*'*50)
+        print('\n')
+###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
 def sample_geometries(freqlog,num_geoms,T, limit=np.inf, warning=True):
