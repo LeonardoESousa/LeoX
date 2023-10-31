@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-import numpy as np
 import os
 import sys
-from scipy.stats import norm
 import time
 import subprocess
+from scipy.stats import norm
+import numpy as np
 import pandas as pd
 
 ##SOME CONSTANTS##############################################
@@ -41,13 +41,11 @@ def pega_freq(freqlog):
                 for j in range(3,len(line)):
                     M.append(float(line[j]))
             elif 'Thermochemistry' in line:
-                break        
+                break
+    if len(F) == 0 or len(M) == 0:
+        fatal_error("No frequencies or reduced masses found. Check your frequency file. Goodbye.")
     #conversion in angular frequency
-    F = np.array(F)*(c*100*2*pi) 
-    try:
-        f = F[0]
-    except:
-        fatal_error("No frequencies in the log file! Goodbye!")
+    F = np.array(F)*(c*100*2*pi)
     #conversion from amu to kg
     M = np.asarray(M)*amu
     return F, M
@@ -56,7 +54,6 @@ def pega_freq(freqlog):
 ##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
 def pega_geom(freqlog):
     if ".log" in freqlog:
-        status = 0
         busca = "orientation:"
         n = -1
         with open(freqlog, 'r') as f:
@@ -238,7 +235,7 @@ def distort(freqlog):
             Gfinal = np.hstack((Gfinal,A1 + G))
         except:
             Gfinal = A1 + G
-    base, _, nproc, mem, scrf, spec = busca_input(freqlog)
+    base, _, nproc, mem, _, _ = busca_input(freqlog)
     cm = get_cm(freqlog)
     header = "%nproc={}\n%mem={}\n# {} opt freq=noraman\n\nDISTORTED GEOM\n\n{}\n".format(nproc,mem,base,cm)
     bottom = '\n'
@@ -261,7 +258,7 @@ def double_check(freqlog):
         for line in f:
             if "Stationary point found" in line:
                 stationary = True
-            elif all(["Item","Value","Threshold","Converged?"]) in line:
+            elif all(s in line for s in ["Item","Value","Threshold","Converged?"]):
                 stationary = False
     if not stationary:
         print('*'*50)
@@ -592,7 +589,7 @@ def fetch_file(frase,ends):
     for file in [i for i in os.listdir('.')]:
         for end in ends:
             if end in file:
-                 files.append(file)
+                files.append(file)
     if len(files) == 0:
         fatal_error("No {} file found. Goodbye!".format(frase))
     freqlog = 'nada0022'    
@@ -618,8 +615,6 @@ def batch():
         int(num)
     except:
         fatal_error("These must be integers. Goodbye!")
-    
-    import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
         f.write(limite)
@@ -658,7 +653,6 @@ def omega_tuning():
     
     script = fetch_file('batch script',['.sh'])    
     gaussian = input('g16 or g09?\n')
-    import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
         f.write('Running')
@@ -675,18 +669,18 @@ def conformational():
     T, DT = str(T), str(DT)
     base, _, nproc, mem, _, _ = busca_input(freqlog)
     print('This is the configuration taken from the file:\n')
-    print('Functional/basis: {}'.format(base))
-    print('%nproc='+nproc)    
+    print('Functional/basis: {base}')
+    print('%nproc='+nproc)
     print('%mem='+mem)
-    print('Initial Temperature: {} K'.format(T))
-    print('Temperature step: {} K'.format(DT))
+    print(f'Initial Temperature: {T} K')
+    print(f'Temperature step: {DT} K')
     change = input('Are you satisfied with these parameters? y or n?\n')
     if change == 'n':
-        base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-        nproc  = default(nproc,'nproc={}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-        mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
-        T      = default(T,"Initial temperature is {} K. If ok, Enter. Otherwise, type it.\n".format(T))
-        DT     = default(DT,"Temperature step is {} K. If ok, Enter. Otherwise, type it.\n".format(DT))
+        base   = default(base,f"Functional/basis is {base}. If ok, Enter. Otherwise, type functional/basis.\n")
+        nproc  = default(nproc,f'nproc={nproc}. If ok, Enter. Otherwise, type it.\n')
+        mem    = default(mem,f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
+        T      = default(T,f"Initial temperature is {T} K. If ok, Enter. Otherwise, type it.\n")
+        DT     = default(DT,f"Temperature step is {DT} K. If ok, Enter. Otherwise, type it.\n")
     script    = fetch_file('batch script',['.sh'])    
     num_geoms = input("Number of geometries sampled at each round?\n")
     rounds    = input("Number of rounds?\n")
@@ -700,7 +694,6 @@ def conformational():
         fatal_error("These must be integers. Goodbye!")
     with open('limit.lx','w') as f:
         f.write('Running')
-    import subprocess
     folder = os.path.dirname(os.path.realpath(__file__)) 
     subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds,numjobs, script, gaussian, '&'])
 ###############################################################
@@ -805,13 +798,13 @@ def abort_batch():
 ###############################################################
 
 ##DELETES CHK FILES############################################
-def delchk(input,term):
-    num = input.split('-')[1]
+def delchk(input_file,term):
+    num = input_file.split('-')[1]
     if term == 1:
         a = ''
     elif term == 2:
         a = '2'
-    try:        
+    try:
         os.remove('step{}_{}.chk'.format(a,num))
     except:
         pass      
@@ -821,11 +814,11 @@ def delchk(input,term):
 def watcher(files,counter):
     rodando = files.copy()
     done = []
-    for input in rodando: 
+    for input_file in rodando:
         term = 0
         error = False
         try:
-            with open(input[:-3]+'log', 'r') as f:
+            with open(input_file[:-3]+'log', 'r') as f:
                 for line in f:
                     if 'Normal termination' in line:
                         term += 1
@@ -833,14 +826,14 @@ def watcher(files,counter):
                             delchk(input,term)
                     elif 'Error termination' in line:
                         error = True
-                        print('The following job returned an error: {}'.format(input))
-                        print('Please check the file for any syntax errors.')        
+                        print(f'The following job returned an error: {input_file}')
+                        print('Please check the file for any syntax errors.')
             if term == counter or error:
                 done.append(input)
         except:
-            pass 
+            pass
     for elem in done:
-        del rodando[rodando.index(elem)]                                
+        del rodando[rodando.index(elem)]
     return rodando
 ###############################################################
 
@@ -854,7 +847,7 @@ def search_spectra():
             for line in f:
                 if 'cross_section' in line:
                     Abs = candidate
-                elif 'diff_rate' in line:     
+                elif 'diff_rate' in line:
                     Emi = candidate
                 break
     return Abs, Emi
@@ -863,8 +856,8 @@ def search_spectra():
 ##RUNS EXCITON ANALYSIS########################################
 def ld():
     Abs, Emi = search_spectra()
-    print('Absorption file: {}'.format(Abs))
-    print('Emission file: {}'.format(Emi))
+    print(f'Absorption file: {Abs}')
+    print(f'Emission file: {Emi}')
     check = input('Are these correct? y or n?\n')
     if check == 'n':
         Abs = input('Type name of the absorption spectrum file\n')
@@ -876,7 +869,7 @@ def ld():
     try:
         rmin  = float(rmin)
         kappa = np.sqrt(float(kappa))
-        Phi   = float(Phi) 
+        Phi   = float(Phi)
     except:
         fatal_error('These features must be numbers. Goodbye!')    
     if Phi > 1 or Phi < 0:
@@ -884,19 +877,19 @@ def ld():
 
     correct = input('Include correction for short distances? y or n?\n')
     if correct == 'y':
-        alpha = 1.15*0.53 
+        alpha = 1.15*0.53
         print('Employing correction!')
     else:
         alpha = 0
         print('Not employing correction!')
-    
+
     print('Computing...')
     from lx.ld import run_ld 
     try:
         run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')
     except:
-        print('Something went wrong. Check if the name of the files are correct.')        
+        print('Something went wrong. Check if the name of the files are correct.')
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
@@ -908,7 +901,7 @@ def hold_watch(files, log):
             with open(log,'a') as f:
                 f.write('\n#Aborted!')
             sys.exit()
-        time.sleep(30)    
+        time.sleep(30)
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
@@ -918,12 +911,12 @@ def rodar_lista(lista, batch_file, gaussian, log, num=1):
     for i in range(n):
         with open(f'cmd_{i}.sh', 'w') as f:
             for file in lista[i*num:(i+1)*num]:
-                f.write('{} {}\n'.format(gaussian,file))
-        subprocess.call(['bash', batch_file, f'cmd_{i}.sh']) 
+                f.write(f'{gaussian} {file}\n')
+        subprocess.call(['bash', batch_file, f'cmd_{i}.sh'])
     if len(lista)%num != 0:
         with open(f'cmd_{n+1}.sh', 'w') as f:
             for file in lista[n*num:]:
-                f.write('{} {}\n'.format(gaussian,file))
+                f.write(f'{gaussian} {file}\n')
         subprocess.call(['bash', batch_file, f'cmd_{n+1}.sh'])
     hold_watch(lista, log)
 ###############################################################
