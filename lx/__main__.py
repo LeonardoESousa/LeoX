@@ -136,9 +136,8 @@ def interface():
         if question.lower() == 'y':
             try:
                 classify_only()
-            except Exception as e:
-                lx.tools.fatal_error(e)
-
+            except:
+                lx.tools.fatal_error('Something went wrong. Your folder may not contain Geomtetry log files. Goodbye!')
         else:
             lx.tools.conformational()
     elif op == '7':
