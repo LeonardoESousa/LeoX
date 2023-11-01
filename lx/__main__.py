@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import lx.tools
+from lx.conf_search import classify_only
 
 def interface():
     print("#                       #     #")
@@ -72,15 +73,15 @@ def interface():
                 solv = "SOLVENT="+solv
             if temtd:
                 print("Inputs suitable for emission spectra!\n")    
-                header = "%chk=step_UUUUU.chk\n%nproc={}\n%mem={}\n# {} {}=(NSTATES={}) SCRF=(CorrectedLR,NonEquilibrium=Save,{})\n\n{}\n\n{}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
-                bottom = "{}\n--Link1--\n%nproc={}\n%mem={}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{})\n\nTITLE\n\n{}\n\n{}".format(epss,nproc,mem,base,solv,cm,epss) 
+                header = f"%chk=step_UUUUU.chk\n%nproc={nproc}\n%mem={mem}\n# {base} {tda}=(NSTATES={num_ex}) SCRF=(CorrectedLR,NonEquilibrium=Save,{solv})\n\n{spec}\n\n{cm}\n" 
+                bottom = f"{epss}\n--Link1--\n%nproc={nproc}\n%mem={mem}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {base} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{solv})\n\nTITLE\n\n{cm}\n\n{epss}" 
             else:
                 print("Inputs suitable for absortion spectra!!\n")
-                header = "%nproc={}\n%mem={}\n# {} SCRF=(CorrectedLR,{}) {}=(NSTATES={})\n\n{}\n\n{}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
+                header = f"%nproc={nproc}\n%mem={mem}\n# {base} SCRF=(CorrectedLR,{solv}) {tda}=(NSTATES={num_ex})\n\n{spec}\n\n{cm}\n"
                 bottom = epss
         elif pcm == 'n':
             epss = lx.tools.set_eps(scrf)
-            header = "%nproc={}\n%Mem={}\n# {}=(NStates={}) {} {} \n\n{}\n\n{}\n".format(nproc,mem,tda,num_ex,base,scrf,spec,cm)
+            header = f"%nproc={nproc}\n%Mem={mem}\n# {tda}=(NStates={num_ex}) {base} {scrf} \n\n{spec}\n\n{cm}\n"
             bottom = epss+'\n\n'
         else:
             lx.tools.fatal_error("It should be y or n. Goodbye!")
@@ -89,15 +90,15 @@ def interface():
             lx.tools.fatal_error("Have you heard about absolute zero? Goodbye!")
         lx.tools.make_ensemble(freqlog, num_geoms, T, header, bottom)    
     elif op == '2':
-        lx.tools.batch() 
+        lx.tools.batch()
     elif op == '3':
         opc  = lx.tools.detect_sigma()
         tipo = lx.tools.get_spec()
-        nr   = lx.tools.get_nr() 
+        nr   = lx.tools.get_nr()
         print('The spectrum will be run with the following parameters:\n')
-        print('Spectrum type: {}'.format(tipo.title()))
-        print('Standard deviation of: {:.3f} eV'.format(opc))
-        print('Refractive index: {:.3f}\n'.format(nr))
+        print(f'Spectrum type: {tipo.title()}')
+        print(f'Standard deviation of: {opc:.3f} eV')
+        print(f'Refractive index: {nr:.3f}\n')
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
             opc = input("What is the standard deviation of the gaussians?\n")
@@ -109,7 +110,7 @@ def interface():
             try:
                 nr = float(nr)
             except: 
-                lx.tools.fatal_error("It must be a number. Goodbye!") 
+                lx.tools.fatal_error("It must be a number. Goodbye!")
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 lx.tools.fatal_error('It must be either one. Goodbye!')
@@ -131,20 +132,28 @@ def interface():
     elif op == '5':
         lx.tools.ld()
     elif op == '6':
-        lx.tools.conformational()
+        question = input('Classify only? y or n?\n')
+        if question.lower() == 'y':
+            try:
+                classify_only()
+            except Exception as e:
+                lx.tools.fatal_error(e)
+
+        else:
+            lx.tools.conformational()
     elif op == '7':
         lx.tools.omega_tuning()
     elif op == '8':
         freqlog = lx.tools.fetch_file("Frequency log with imaginary frequencies",['.log'])
-        lx.tools.distort(freqlog)    
+        lx.tools.distort(freqlog)
     elif op == '9':
         freqlog = lx.tools.fetch_file("log",['.log'])
         base, _, nproc, mem, scrf, _ = lx.tools.busca_input(freqlog)
         cm = lx.tools.get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
+        header = f'%nproc={nproc}\n%mem={mem}\n# {base} {scrf}\n\nTITLE\n\n{cm}\n'
         G, atomos = lx.tools.pega_geom(freqlog)
         lx.tools.write_input(atomos,G,header,'','geom.lx')
-        print('Geometry saved in the geom.lx file.')    
+        print('Geometry saved in the geom.lx file.')
     elif op == '10':
         lx.tools.abort_batch()
     else:
@@ -155,16 +164,11 @@ def main():
         freqlog = sys.argv[1]
         G, atomos = lx.tools.pega_geom(freqlog)
         print(len(atomos))
-        print('\n')    
+        print('\n')
         for i in range(len(atomos)):
-            print("{:2s}  {:.7f}  {:.7f}  {:.7f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+            print(f"{atomos[i]:2s}  {G[i,0]:.7f}  {G[i,1]:.7f}  {G[i,2]:.7f}")
     except:
         interface()
-    
-    
 
-
-    
 if __name__ == "__main__":
-    sys.exit(main())        
-
+    sys.exit(main())

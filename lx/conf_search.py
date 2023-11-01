@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-import numpy as np
 import os
 import sys
-import subprocess
-import random
 import shutil
+import numpy as np
 import lx.tools
-from scipy.stats import norm
+
 
 c     = lx.tools.c
 pi    = lx.tools.pi
@@ -18,9 +16,9 @@ kb    = lx.tools.kb
 def distance_matrix(G):
     matrix = np.zeros((1,np.shape(G)[0]))
     for ind in range(np.shape(G)[0]):
-            distances = G - G[ind,:]
-            distances = np.sqrt(np.sum(np.square(distances),axis=1))    
-            matrix = np.vstack((matrix,distances[np.newaxis,:]))
+        distances = G - G[ind,:]
+        distances = np.sqrt(np.sum(np.square(distances),axis=1))    
+        matrix = np.vstack((matrix,distances[np.newaxis,:]))
     matrix = matrix[1:,:]
     matrix[matrix==0] = np.inf
     return matrix
@@ -32,13 +30,13 @@ def bond(matrix,atoms):
     CM = np.zeros(np.shape(matrix))
     while np.min(matrix) < 100:
         x,y = np.where(matrix == np.min(matrix))
-        x, y = x[0], y[0]         
+        x, y = x[0], y[0]
         if matrix[x,y] < 1.3*(valence[atoms[x]] + valence[atoms[y]]):
             CM[x,y] += 1
-            CM[y,x] += 1      
+            CM[y,x] += 1
         matrix[x,y] = np.inf
-        matrix[y,x] = np.inf   
-    return CM      
+        matrix[y,x] = np.inf
+    return CM
 
 def fingerprint(file,folder):
     try:
@@ -48,7 +46,7 @@ def fingerprint(file,folder):
         cm = bond(matrix,atoms)
     except:
         cm = np.zeros((5,5))
-    return cm              
+    return cm
 
 ##SAMPLES GEOMETRIES###########################################
 def make_geoms(freqlog, num_geoms, T, header, bottom):
@@ -59,7 +57,7 @@ def make_geoms(freqlog, num_geoms, T, header, bottom):
         Gfinal = A[:,n:n+3]
         lx.tools.write_input(atomos,Gfinal,header.replace("UUUUU",str((n+3)//3)),bottom.replace("UUUUU",str((n+3)//3)),"Geometry-"+str((n+3)//3+counter)+"-.com")
         lista.append("Geometry-"+str((n+3)//3+counter)+"-.com") 
-    return lista      
+    return lista
 ############################################################### 
 
 ##GETS ENERGY FROM THE ORIGINAL FREQ LOG FILE##################
@@ -75,7 +73,7 @@ def get_energy_origin(freqlog):
                 exc  = float(line[4])*27.2114    
             elif 'Rotational constants' in line:
                 line = line.split()
-                rot  = [float(line[3]),float(line[4]),float(line[5])]    
+                rot  = [float(line[3]),float(line[4]),float(line[5])]
             elif 'Normal termination' in line:
                 if exc != 0:
                     scf = exc
@@ -107,7 +105,7 @@ def get_energies(folder,original_molecule):
                         scfs.append(scf)
                         nums.append(num)
                         rots.append(rot)
-                        
+
     for file in files:
         try:
             shutil.move(file, 'Geometries/'+file)
@@ -118,11 +116,11 @@ def get_energies(folder,original_molecule):
 ###############################################################
 
 def measure(vec1,vec2,cr):
-    vec1 = np.array(vec1)     
+    vec1 = np.array(vec1)
     vec2 = np.array(vec2)
     cr   = np.array(cr)
     dist = max(abs(vec1 -vec2) - cr)
-    distance =  np.heaviside(dist,0)   
+    distance =  np.heaviside(dist,0)
     return distance
 
 class Conformation:
@@ -135,7 +133,7 @@ class Conformation:
 
     def add_rot(self,rot,num,energy):
         self.rot = np.vstack((self.rot,rot[np.newaxis,:]))
-        newstd = np.std(self.rot,axis=0)    
+        newstd = np.std(self.rot,axis=0)
         #get higher std
         self.std = np.where(newstd > self.std, newstd, self.std)
         self.num.append(num)
@@ -149,7 +147,7 @@ class Conformation:
 
 
     def get_avg(self):
-        return np.mean(self.rot,axis=0)  
+        return np.mean(self.rot,axis=0)
 
 
 
@@ -163,11 +161,11 @@ def internal_comparison(conformations):
                 conformations[i].energy += conformations[j].energy
                 conformations[i].merge_rot(conformations[j].rot)
                 remove.append(j)
-                break
+                #break
     # remove elements from list whose index is in remove
     conformations = [i for j, i in enumerate(conformations) if j not in remove]
-    return conformations        
-     
+    return conformations
+
 
 def classify(conformations,folder):
     nums, scfs, rots = get_energies(folder,conformations[0].identity)
@@ -177,16 +175,16 @@ def classify(conformations,folder):
             if distance == 0:
                 conformation.add_rot(rots[i,:],nums[i],scfs[i])
                 break
-            conformations.append(Conformation(rots[i,:],scfs[i],conformations[0].identity,nums[i])) 
+            conformations.append(Conformation(rots[i,:],scfs[i],conformations[0].identity,nums[i]))
     if len(conformations) > 1:
-        conformations  = internal_comparison(conformations)           
+        conformations  = internal_comparison(conformations)
     return conformations
 
 def write_report(conformations,round,total_rounds,temp):
     engs = []
     for conformation in conformations:
         engs.append(np.mean(conformation.energy))
-    engs = np.array(engs)    
+    engs = np.array(engs)
     argsort = np.argsort(engs)
     engs = engs[argsort]
     #sort conformations as list
@@ -196,21 +194,21 @@ def write_report(conformations,round,total_rounds,temp):
     probs = probs/sum(probs)
 
     with open('conformation.lx','w') as f:
-        f.write('{:6}  {:10}  {:10}  {:12}  {:10}  {:10}  {:10}  {:10}  {:10}  {:10}  {:6}  {:6}\n'.format('#Group','Energy(eV)','DeltaE(eV)','Prob@300K(%)','Rot1','Rot2','Rot3','Std1','Std2','Std3','Number','Last'))
+        f.write(f"{'#Group':<6}  {'Energy(eV)':<10}  {'DeltaE(eV)':<10}  {'Prob@300K(%)':<12}  {'Rot1':<10}  {'Rot2':<10}  {'Rot3':<10}  {'Std1':<10}  {'Std2':<10}  {'Std3':<10}  {'Number':<6}  {'Last':<6}\n")
         for i in range(len(conformations)):
             rot = conformations[i].get_avg()
             std = conformations[i].std
             last = conformations[i].num[-1]
             total= len(conformations[i].num)
             f.write(f'{i+1:<6}  {engs[i]:<10.3f}  {deltae[i]:<10.3f}  {100*probs[i]:<12.1f}  {rot[0]:<10.7f}  {rot[1]:<10.7f}  {rot[2]:<10.7f}  {std[0]:<10.7f}  {std[1]:<10.7f}  {std[2]:<10.7f}  {total:<6.0f}  {last:<6.0f}\n')
-        f.write(f'\n#Round {round}/{total_rounds} Temperature: {temp} K')    
+        f.write(f'\n#Round {round}/{total_rounds} Temperature: {temp} K')
 
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
     geomlog = f'Geometries/Geometry-{origin:.0f}-.log'
     G, atomos = lx.tools.pega_geom(geomlog) 
-    header = "%nproc={}\n%mem={}\n# freq=(noraman) nosymm  {} \n\n{}\n\n{}\n".format(nproc,mem,base,'ABSSPCT',cm)
+    header = f"%nproc={nproc}\n%mem={mem}\n# freq=(noraman) nosymm  {base} \n\nTITLE\n\n{cm}\n"
     file = f"Freq-{origin:.0f}-.com"
     lx.tools.write_input(atomos,G,header,'',file)
     lx.tools.rodar_lista([file],batch_file,gaussian,'conformation.lx',1)
@@ -222,6 +220,18 @@ def rodar_freq(origin,nproc,mem,base,cm,batch_file,gaussian):
             elif 'Error termination' in line:
                 return None
 ###############################################################
+
+def classify_only():
+    files =[i for i in os.listdir('.') if 'Geometry-' in i and '.log' in i]
+    conformations = []
+    for file in files:
+        num = int(file.split('-')[1])
+        scf, rot = get_energy_origin(file)
+        conformations.append(Conformation(rot,scf,fingerprint(file,'.'),num))
+    conformations = internal_comparison(conformations)
+    write_report(conformations,0,0,0)
+
+
 
 def main():
     freqlog   = sys.argv[1]
@@ -240,8 +250,8 @@ def main():
     if 'td' in base.lower():
         opt = '=loose'
     else:
-        opt = ''    
-    
+        opt = ''
+
     try:
         os.mkdir('Geometries')
     except:
@@ -255,9 +265,9 @@ def main():
         conformations = classify(conformations,'Geometries')
         write_report(conformations,0,rounds,T0)
     else:
-        pass    
+        pass
 
-    
+
     groups = len(conformations)
     for i in range(rounds):
         lista      = make_geoms(freqlog, num_geoms, T0, header, '')
@@ -267,10 +277,10 @@ def main():
         
         if len(conformations) != groups:
             log  = rodar_freq(conformations[-1].num[-1],nproc,mem,base,cm,script,gaussian)
-            if log != None:
+            if log is not None:
                 freqlog = log
                 T0 = T
-            groups = len(conformations)    
+            groups = len(conformations)
         else:
             T0 += DT
 
@@ -279,8 +289,8 @@ def main():
 
     try:
         os.mkdir('Conformers')
-    except:
-        pass    
+    except FileExistsError:
+        pass
 
     for i in range(len(conformations)):
         numero  = conformations[i].num[-1]
@@ -293,19 +303,9 @@ def main():
         header = '%nproc={}\n%mem={}\n%chk=Group_{}_.chk\n# {} {} opt\n\nTITLE\n\n{}\n'.format(nproc,mem,i+1,'pm6',scrf,cm)
         G, atomos = lx.tools.pega_geom(freqlog)
         lx.tools.write_input(atomos,G,header,'','Conformers/Geometry-{}-.com'.format(i+1))
-    
+
 
 
 
 if __name__ == "__main__":
-    sys.exit(main())        
-
-
-        
-        
-        
-
-
-    
-        
-
+    sys.exit(main())
