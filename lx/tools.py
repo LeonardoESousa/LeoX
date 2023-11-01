@@ -669,9 +669,9 @@ def conformational():
     T, DT = str(T), str(DT)
     base, _, nproc, mem, _, _ = busca_input(freqlog)
     print('This is the configuration taken from the file:\n')
-    print('Functional/basis: {base}')
-    print('%nproc='+nproc)
-    print('%mem='+mem)
+    print(f'Functional/basis: {base}')
+    print(f'%nproc={nproc}')
+    print(f'%mem={mem}')
     print(f'Initial Temperature: {T} K')
     print(f'Temperature step: {DT} K')
     change = input('Are you satisfied with these parameters? y or n?\n')
@@ -681,7 +681,7 @@ def conformational():
         mem    = default(mem,f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
         T      = default(T,f"Initial temperature is {T} K. If ok, Enter. Otherwise, type it.\n")
         DT     = default(DT,f"Temperature step is {DT} K. If ok, Enter. Otherwise, type it.\n")
-    script    = fetch_file('batch script',['.sh'])    
+    script    = fetch_file('batch script',['.sh'])
     num_geoms = input("Number of geometries sampled at each round?\n")
     rounds    = input("Number of rounds?\n")
     numjobs   = input("Number of jobs in each batch?\n")
@@ -699,7 +699,7 @@ def conformational():
 ###############################################################
 
 
-##FINDS SUITABLE VALUE FOR STD#################################    
+##FINDS SUITABLE VALUE FOR STD#################################
 def detect_sigma():
     try:
         files = [i for i in os.listdir('.') if 'Magnitudes' in i and '.lx' in i]
@@ -709,7 +709,7 @@ def detect_sigma():
     except:
         sigma = 0.000
     return sigma
-###############################################################    
+###############################################################
 
 ##CHECKS SPECTRUM TYPE#########################################
 def get_spec():
@@ -722,10 +722,10 @@ def get_spec():
             elif 'EMISPCT' in line:
                 tipo = 'emission'
                 break
-    return tipo       
+    return tipo
 ###############################################################
 
-##FETCHES REFRACTIVE INDEX##################################### 
+##FETCHES REFRACTIVE INDEX#####################################
 def get_nr():
     buscar = False
     coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
@@ -744,7 +744,7 @@ def get_nr():
                         nr = np.sqrt(float(line[6]))
                         return nr
     else:
-        return 1                
+        return 1
 ###############################################################
 
 ##FETCHES CHARGE AND MULTIPLICITY##############################
@@ -764,8 +764,7 @@ def default(a,frase):
     b = input(frase)
     if b == '':
         return a
-    else:
-        return b    
+    return b
 ###############################################################
 
 ##SETS DIELECTRIC CONSTANTS####################################
@@ -805,9 +804,9 @@ def delchk(input_file,term):
     elif term == 2:
         a = '2'
     try:
-        os.remove('step{}_{}.chk'.format(a,num))
+        os.remove(f'step{a}_{num}.chk')
     except:
-        pass      
+        pass
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
