@@ -30,11 +30,9 @@ def pega_freq(freqlog):
     F, M = [], []
     with open(freqlog, 'r') as f:
         for line in f:
-            if "Frequencies --" in line:
+            if "Frequencies -- " in line:
                 line = line.split()
                 for j in range(2,len(line)):
-                    if float(line[j]) in F:
-                        pass
                     F.append(float(line[j]))
             elif "Red. masses --" in line:
                 line = line.split()
