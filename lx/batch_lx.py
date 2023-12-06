@@ -2,10 +2,10 @@
 import os
 import time
 import subprocess
-import numpy as np
 import sys
 import shutil
-import lx.tools         
+import numpy as np
+import lx.tools
 
 ##CHECKS WHETHER THE JOB IS TWO STEP###########################
 def set_factor(file):

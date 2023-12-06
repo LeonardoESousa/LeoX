@@ -1,27 +1,31 @@
 #!/usr/bin/env python3
 import numpy as np
 from scipy.interpolate import interp1d
+import lx.parser
 
 ##SOME CONSTANTS##############################################
-hbar = 6.582119514e-16       #eV s
-c    = 299792458             #m/s
-pi = np.pi
+EPSILON_0 =   lx.parser.EPSILON_0    #F/m
+HBAR_EV =     lx.parser.HBAR_EV      #eV s
+HBAR_J =      lx.parser.HBAR_J       #J s
+MASS_E =      lx.parser.MASS_E       #kg
+LIGHT_SPEED = lx.parser.LIGHT_SPEED  #m/s
+E_CHARGE =    lx.parser.E_CHARGE     #C
+BOLTZ_EV =    lx.parser.BOLTZ_EV     #eV/K
+AMU =         lx.parser.AMU          #kg
 ###############################################################
 
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_lifetime(xd,yd,dyd):
     #Integrates the emission spectrum
     IntEmi = np.trapz(yd,xd)
-    taxa   = (1/hbar)*IntEmi
-    error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
+    taxa   = (1/HBAR_EV)*IntEmi
+    error  = (1/HBAR_EV)*np.sqrt(np.trapz((dyd**2),xd))
     dlife  = (1/taxa)*(error/taxa)
-    return 1/taxa, dlife 
+    return 1/taxa, dlife
 ###############################################################
 
 ##CALCULATES FORSTER RADIUS####################################
 def radius(xa,ya,dya,xd,yd,dyd,kappa):
-    #Speed of light
-    c = 299792458  #m/s
     
     #Finds the edges of interpolation
     minA = min(xa)
@@ -55,14 +59,14 @@ def radius(xa,ya,dya,xd,yd,dyd,kappa):
     IntOver = np.trapz(Overlap, X)
 
     #Integrated Overlap Error
-    DeltaOver = np.sqrt(np.trapz((OverError**2),X))       
+    DeltaOver = np.sqrt(np.trapz((OverError**2),X))  
 
     #Gets lifetime
-    tau, delta_tau = calc_lifetime(xd,yd,dyd)	
+    tau, delta_tau = calc_lifetime(xd,yd,dyd)
 
     #Calculates radius sixth power
-    c *= 1e10
-    const   = (hbar**3)*(9*(c**4)*(kappa**2)*tau)/(8*pi)
+    c = LIGHT_SPEED*1e10
+    const   = (HBAR_EV**3)*(9*(c**4)*(kappa**2)*tau)/(8*np.pi)
     radius6 = const*IntOver
 
     #Relative error in radius6

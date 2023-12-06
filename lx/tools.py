@@ -6,87 +6,49 @@ import subprocess
 from scipy.stats import norm
 import numpy as np
 import pandas as pd
+from lx.ld import run_ld
+import lx.parser
 
 ##SOME CONSTANTS##############################################
-epsilon0 = 8.854187817e-12   #F/m
-hbar = 6.582119514e-16       #eV s
-hbar2 = 1.054571800e-34      #J s
-mass = 9.10938356e-31        #kg
-c = 299792458                #m/s
-e = 1.60217662e-19           #C
-kb = 8.6173303e-5            #eV/K
-amu = 1.660539040e-27        #kg
-pi = np.pi
+EPSILON_0 =   lx.parser.EPSILON_0    #F/m
+HBAR_EV =     lx.parser.HBAR_EV      #eV s
+HBAR_J =      lx.parser.HBAR_J       #J s
+MASS_E =      lx.parser.MASS_E       #kg
+LIGHT_SPEED = lx.parser.LIGHT_SPEED  #m/s
+E_CHARGE =    lx.parser.E_CHARGE     #C
+BOLTZ_EV =    lx.parser.BOLTZ_EV     #eV/K
+AMU =         lx.parser.AMU          #kg
 ###############################################################
 
-##ERROR FUNCTION###############################################
-def fatal_error(msg):
-    print(msg)
-    sys.exit()
-###############################################################
+def distance_matrix(geom):
+    matrix = np.zeros((1,np.shape(geom)[0]))
+    for ind in range(np.shape(geom)[0]):
+        distances = geom - geom[ind,:]
+        distances = np.sqrt(np.sum(np.square(distances),axis=1))
+        matrix = np.vstack((matrix,distances[np.newaxis,:]))
+    matrix = matrix[1:,:]
+    return matrix
 
-##GETS FREQUENCIES AND REDUCED MASSES##########################
-def pega_freq(freqlog):
-    F, M = [], []
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if "Frequencies -- " in line:
-                line = line.split()
-                for j in range(2,len(line)):
-                    F.append(float(line[j]))
-            elif "Red. masses --" in line:
-                line = line.split()
-                for j in range(3,len(line)):
-                    M.append(float(line[j]))
-            elif 'Thermochemistry' in line:
-                break
-    if len(F) == 0 or len(M) == 0:
-        fatal_error("No frequencies or reduced masses found. Check your frequency file. Goodbye.")
-    #conversion in angular frequency
-    F = np.array(F)*(c*100*2*pi)
-    #conversion from amu to kg
-    M = np.asarray(M)*amu
-    return F, M
-###############################################################
+def adjacency(geom,atoms):
+    covalent_radii = {1:0.31, 2:0.28, 3:1.28, 4:0.96, 5:0.84, 6:0.76, 7:0.71, 8:0.66, 9:0.57, 10:0.58, 11:1.66, 12:1.41, 13:1.21, 14:1.11,
+           15:1.07, 16:1.05, 17:1.02, 18:1.06, 19:2.03, 20:1.76, 21:1.7, 22:1.6, 23:1.53, 24:1.39, 25:1.61, 26:1.52, 27:1.50,
+           28:1.24, 29:1.32, 30:1.22, 31:1.22, 32:1.2, 33:1.19, 34:1.20, 35:1.20, 36:1.16}
+    atoms = np.array(atoms).astype(float)
+    dist_matrix = distance_matrix(geom)
+    adj_matrix = np.zeros(np.shape(dist_matrix))
+    #connectivity matrix
+    for i in range(np.shape(dist_matrix)[0]):
+        for j in range(i, np.shape(dist_matrix)[1]):
+            r_e = (covalent_radii[atoms[i]] + covalent_radii[atoms[j]]) + 0.4
+            if 0.8 < dist_matrix[i,j] < r_e:
+                adj_matrix[i,j] = adj_matrix[j,i] = 1
+    return adj_matrix
 
-##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
-def pega_geom(freqlog):
-    if ".log" in freqlog:
-        busca = "orientation:"
-        n = -1
-        with open(freqlog, 'r') as f:
-            for line in f:
-                if busca in line and 'Dipole' not in line:
-                    n = 0
-                    G = np.zeros((1,3))
-                    atomos = []
-                elif n >= 0 and n < 4:
-                    n += 1
-                elif n >= 4 and "---------------------------------------------------------------------" not in line:    
-                    line = line.split()
-                    NG = []
-                    for j in range(3,len(line)):
-                        NG.append(float(line[j]))
-                    atomos.append(line[1])
-                    G = np.vstack((G,NG))       
-                    n += 1  
-                elif "---------------------------------------------------------------------" in line and n>1:
-                    n = -1       
-    else:
-        G = np.zeros((1,3))
-        atomos = []
-        with open(freqlog, 'r') as f:
-            for line in f:
-                line = line.split()
-                try:
-                    vetor = np.array([float(line[1]),float(line[2]), float(line[3])])
-                    atomos.append(line[0])
-                    G = np.vstack((G,vetor))
-                except:
-                    pass
-    G = G[1:,:]                 
-    return G, atomos
-###############################################################
+
+def fingerprint(file,folder):
+    geom, atoms = lx.parser.pega_geom(folder+'/'+file)
+    cm = adjacency(geom,atoms)
+    return cm
 
 ##SAVES OPT GEOMETRY###########################################
 def salva_geom(G,atomos):
@@ -97,108 +59,12 @@ def salva_geom(G,atomos):
     print("The optimized geometry that is used is saved in the opt_geom.lx file!")
 ###############################################################
 
-##GETS NORMAL COORDINATES IN HIGH PRECISION####################
-def pega_modosHP(G, freqlog):
-    F, M = pega_freq(freqlog)
-    n = -1
-    num_atom = np.shape(G)[0]
-    NC = np.zeros((3*num_atom,1))
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if n == 0:
-                line = line.split()[3:]
-                C = np.asarray([float(i) for i in line])
-                n += 1
-            elif n < 0 or n > 3*num_atom:
-                if "Coord Atom Element:" in line:
-                    n = 0
-            elif n > 0 and n < 3*num_atom:
-                line = line.split()[3:]
-                line = np.asarray([float(i) for i in line])
-                C = np.vstack((C,line))
-                n += 1  
-            elif n == 3*num_atom:
-                NC = np.hstack((NC,C))
-                n += 1
-    NC = NC[:,1:]
-    MM = np.zeros((1,len(F)))
-    M = np.expand_dims(M,axis=0)
-    for _ in range(0,3*num_atom):
-        MM = np.vstack((MM,M))
-    M = MM[1:,:]
-    return NC
-###############################################################
-
-##GETS NORMAL COORDINATES IN REGULAR PRECISION#################
-def pega_modosLP(G,freqlog):
-    F, M = pega_freq(freqlog)
-    C = []
-    n = -1
-    num_atom = np.shape(G)[0]
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if n < 0 or n >= num_atom:
-                if "Atom  AN      X      Y      Z" in line:
-                    n = 0
-                else:
-                    pass
-            elif n >= 0 and n < num_atom:
-                line = line.split()
-                for j in range(2,len(line)):
-                    C.append(float(line[j]))
-                n += 1  
-                
-    num_modos = len(F)
-    
-    l = 0
-    p = 0
-    NNC = np.zeros((num_atom,1))
-    while l < num_modos:
-        NC = np.zeros((1,3))
-        k =0
-        while k < num_atom:     
-            B = np.asarray(C[3*(l+3*k)+p:3*(l+3*k)+3+p])
-            NC = np.vstack((NC,B))
-            k += 1      
-        NNC = np.hstack((NNC,NC[1:,:]))
-        l += 1
-        if l%3 == 0 and l != 0:
-            p = p + (num_atom-1)*9  
-    NNC = NNC[:,1:] #matriz com as coordenadas normais de cada modo
-    D = np.zeros((3*num_atom,1))
-    for i in range(0,len(F)):
-        normal = NNC[:,3*i:3*i+3].flatten()
-        normal = np.expand_dims(normal,axis=1)
-        D = np.hstack((D,normal))
-    D = D[:,1:]
-    MM = np.zeros((1,len(F)))
-    M = np.expand_dims(M,axis=0)
-    for i in range(0,3*num_atom):
-        MM = np.vstack((MM,M))
-    M = MM[1:,:]
-    return D
-###############################################################
-
-##DETECTS WHETHER HIGH PRECISION IS USED#######################
-def pega_modos(G,freqlog):
-    x = 'LP'
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if "Coord Atom Element:" in line:
-                x = 'HP'
-                break
-    if x == 'LP':
-        return pega_modosLP(G,freqlog)
-    else:
-        return pega_modosHP(G,freqlog)
-###############################################################
-
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
-def write_input(atomos,G,header,bottom,file):
-    with open(file, 'w') as f:
+def write_input(atomos,geom,header,bottom,file):
+    with open(file, 'w', encoding='utf-8') as f:
         f.write(header)
-        for i in range(0,len(atomos)):
-            texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
+        for i, atomo in enumerate(atomos):
+            texto = f"{atomo:2s}  {geom[i,0]:.6f}  {geom[i,1]:.6f}  {geom[i,2]:.6f}\n"
             f.write(texto)
         f.write("\n"+bottom+'\n')
 ###############################################################
@@ -213,18 +79,18 @@ def start_counter():
 def distort(freqlog):
     num_geoms = 1
     T = 300
-    G, atomos = pega_geom(freqlog)
-    F, M      = pega_freq(freqlog)
-    NNC       = pega_modos(G,freqlog)
+    G, atomos = lx.parser.pega_geom(freqlog)
+    F, M      = lx.parser.pega_freq(freqlog)
+    NNC       = lx.parser.pega_modos(G,freqlog)
     num_atom  = np.shape(G)[0]
     A = np.zeros((3*num_atom,num_geoms))
     # check for imaginary frequencies
     if np.all(F > 0):
-        fatal_error("No imaginary frequencies found. Exiting...")
-    for i in range(0,len(F)):
+        lx.parser.fatal_error("No imaginary frequencies found. Exiting...")
+    for i in range(len(F)):
         if F[i] < 0:
             f = -1*F[i]
-            q = 3*np.sqrt(hbar2/(2*M[i]*f*np.tanh(hbar*f/(2*kb*T))))
+            q = 3*np.sqrt(HBAR_J/(2*M[i]*f*np.tanh(HBAR_EV*f/(2*BOLTZ_EV*T))))
             q = np.array(q)
             A += np.outer(NNC[:,i],q)
     for n in range(np.shape(A)[1]):
@@ -233,99 +99,72 @@ def distort(freqlog):
             Gfinal = np.hstack((Gfinal,A1 + G))
         except:
             Gfinal = A1 + G
-    base, _, nproc, mem, _, _ = busca_input(freqlog)
-    cm = get_cm(freqlog)
-    header = "%nproc={}\n%mem={}\n# {} opt freq=noraman\n\nDISTORTED GEOM\n\n{}\n".format(nproc,mem,base,cm)
+    base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
+    cm = lx.parser.get_cm(freqlog)
+    header = f"%nproc={nproc}\n%mem={mem}\n# {base} opt freq=noraman\n\nDISTORTED GEOM\n\n{cm}\n"
     bottom = '\n'
     for n in range(0,np.shape(A)[1],3):
         Gfinal = Gfinal[:,n:n+3]
         write_input(atomos,Gfinal,header,bottom,"distorted.com")
-    print("New input file written to distorted.com")    
+    print("New input file written to distorted.com")
 ###############################################################
 
 
-##CHECKS FREQ FILES############################################
-def double_check(freqlog):
-    _, _, header = get_input_params(freqlog)
-    header = header.lower()
-    optfreqissue = False
-    stationary = False
-    if "opt" in header and 'freq' in header and 'iop(' in header:
-        optfreqissue = True
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if "Stationary point found" in line:
-                stationary = True
-            elif all(s in line for s in ["Item","Value","Threshold","Converged?"]):
-                stationary = False
-    if not stationary:
-        print('*'*50)
-        print("WARNING: Non-optimized parameters detected in your frequency file.")
-        print('Even though the frequencies may be all real, your structure is still not fully optimized.')
-        print('This may lead to inaccurate results.')
-        if optfreqissue:
-            print('In your case, this may be due to running an opt freq calculation using a single input file and IOP options.')
-            print('Gaussian does not carry the IOP options to the frequency calculation when using a single input file.')
-            print('To avoid this issue, run the optimization and frequency calculations separately.')
-        else:
-            print('To learn more about this issue, check https://gaussian.com/faq3/ .')
-        print('Proceed at your own risk.')
-        print('*'*50)
-        print('\n')
-###############################################################
-
-##SAMPLES GEOMETRIES###########################################
-def sample_geometries(freqlog,num_geoms,T, limit=np.inf, warning=True):
-    G, atomos = pega_geom(freqlog)
-    F, M      = pega_freq(freqlog)
-    NNC       = pega_modos(G,freqlog)
+def sample_geometries(freqlog,num_geoms,temp,limit=np.inf,warning=True):
+    geom, atomos = lx.parser.pega_geom(freqlog)
+    old = adjacency(geom,atomos)
+    freqs, masses = lx.parser.pega_freq(freqlog)
+    normal_coord = lx.parser.pega_modosLP(geom,freqlog)
     # check for negative frequencies
     if warning:
-        if np.any(F < 0):
-            fatal_error("Imaginary frequencies detected. Check your frequency file. Goodbye.")
-        double_check(freqlog)
+        lx.parser.double_check(freqlog)
     else:
-        F[F < 0] *= -1
-        mask = F < limit*(c*100*2*pi)
-        F = F[mask]
-        NNC = NNC[:,mask]
-    num_atom  = np.shape(G)[0]
-    A = np.zeros((3*num_atom,num_geoms))
-    for i in range(0,len(F)):
-        scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-        normal = norm(scale=scale,loc=0)
-        #Displacements in  Å
-        q = normal.rvs(size=num_geoms)*1e10
+        freqs[freqs < 0] *= -1
+        mask = freqs < limit*(LIGHT_SPEED*100*2*np.pi)
+        freqs = freqs[mask]
+        normal_coord = normal_coord[:,mask]
+    structures = np.zeros((geom.shape[0],geom.shape[1],num_geoms))
+    scales = 1e10*np.sqrt(HBAR_J/(2*masses*freqs*np.tanh(HBAR_EV*freqs/(2*BOLTZ_EV*temp))))
+    for j in range(num_geoms):
+        ok = False
+        while not ok:
+            start_geom = geom.copy()
+            nums = []
+            for i, scale in enumerate(scales):
+                normal = norm(scale=scale,loc=0)
+                q = normal.rvs(size=1)
+                start_geom += q*normal_coord[:,:,i]
+                nums.append(q)
+            new = adjacency(start_geom,atomos)
+            if 0.5*np.sum(np.abs(old-new)) < 2:
+                ok = True
+                structures[:,:,j] = start_geom
+            else:
+                print('rejected',0.5*np.sum(np.abs(old-new)))
+        nums = np.array(nums).T
         try:
-            numbers = np.hstack((numbers,q[:,np.newaxis]))
-        except:
-            numbers = q[:,np.newaxis]
-        A += np.outer(NNC[:,i],q)
-    for n in range(np.shape(A)[1]):
-        A1 = np.reshape(A[:,n],(num_atom,3))
-        try:
-            Gfinal = np.hstack((Gfinal,A1 + G))
-        except:
-            Gfinal = A1 + G     
+            numbers = np.vstack((numbers,nums))
+        except UnboundLocalError:
+            numbers = nums
     numbers = np.round(numbers,4)
-    return numbers, atomos, Gfinal
+    return numbers, atomos, structures
 ###############################################################
 
 ##MAKES ENSEMBLE###############################################
-def make_ensemble(freqlog, num_geoms, T, header, bottom):
+def make_ensemble(freqlog, num_geoms, temp, header, bottom):
     try:
         os.mkdir('Geometries')
-    except:
-        pass        
-    counter = start_counter()   
+    except FileExistsError:
+        pass
+    counter = start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, A = sample_geometries(freqlog,num_geoms,T)
-    F, M      = pega_freq(freqlog)
+    numbers, atomos, A = sample_geometries(freqlog,num_geoms,temp)
+    F, M      = lx.parser.pega_freq(freqlog)
     #convert numbers to dataframe
     numbers = pd.DataFrame(numbers,columns=[f"mode_{i+1}" for i in range(np.shape(numbers)[1])])
     #check if file exists
-    if os.path.isfile(f'Magnitudes_{T:.0f}K_.lx'):
-        data = pd.read_csv(f'Magnitudes_{T:.0f}K_.lx')
+    if os.path.isfile(f'Magnitudes_{temp:.0f}K_.lx'):
+        data = pd.read_csv(f'Magnitudes_{temp:.0f}K_.lx')
         # get only columns with mode_ in the name
         data = data.filter(regex='mode_')
         #remove nan values
@@ -334,21 +173,21 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
         numbers = pd.concat([data,numbers],axis=0,ignore_index=True)
     # concatenate frequencies and masses to numbers
     numbers = pd.concat([pd.DataFrame(F,columns=['freq']),pd.DataFrame(M,columns=['mass']),numbers],axis=1)
-    numbers.to_csv(f'Magnitudes_{T:.0f}K_.lx',index=False)
-    for n in range(0,np.shape(A)[1],3):
-        Gfinal = A[:,n:n+3]  
-        write_input(atomos,Gfinal,header.replace("UUUUU",str((n+3)//3)),bottom.replace("UUUUU",str((n+3)//3)),"Geometries/Geometry-"+str((n+3)//3+counter)+"-.com")
-        progress = 100*((n+3)//3)/num_geoms
-        text = "{:2.1f}%".format(progress)
+    numbers.to_csv(f'Magnitudes_{temp:.0f}K_.lx',index=False)
+    for n in range(np.shape(A)[2]):
+        Gfinal = A[:,:,n]
+        write_input(atomos,Gfinal,header.replace("UUUUU",str(n+1)),bottom.replace("UUUUU",str(n+1)),f"Geometries/Geometry-{n+1+counter}-.com")
+        progress = 100*(n+1)/num_geoms
+        text = f"{progress:2.1f}%"
         print(' ', text, "of the geometries done.",end="\r", flush=True)
-    print("\n\nDone! Ready to run.")   
+    print("\n\nDone! Ready to run.")
 ################################################################
-            
-##COLLECTS RESULTS############################################## 
+
+##COLLECTS RESULTS##############################################
 def gather_data(opc, tipo):
-    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
+    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]
     files = [i for i in files if 'Normal termination' in open('Geometries/'+i, 'r').read()]
-    files = sorted(files, key=lambda file: float(file.split("-")[1])) 
+    files = sorted(files, key=lambda file: float(file.split("-")[1]))
     with open("Samples.lx", 'w') as f:
         for file in files:
             num = file.split("-")[1]
@@ -374,17 +213,17 @@ def gather_data(opc, tipo):
                 if len(numeros) > 0:
                     f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) \n")
                     if corrected != -1 and tipo == 'abs': #abspcm
-                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],corrected, fs[0], broadening))
-                    elif corrected != -1 and tipo == 'emi': #emipcm     
+                        f.write(f"Excited State {numeros[0]}\t{corrected}\t{fs[0]}\t{broadening}\n")
+                    elif corrected != -1 and tipo == 'emi': #emipcm
                         energy = total_corrected - scfs[-1]
-                        f.write("Excited State {}\t{:.3f}\t{}\t{}\n".format(numeros[0],energy,fs[0],broadening))
+                        f.write(f"Excited State {numeros[0]}\t{energy:.3f}\t{fs[0]}\t{broadening}\n")
                     elif corrected == -1 and tipo == 'emi':
-                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],energies[0],fs[0],broadening))
+                        f.write(f"Excited State {numeros[0]}\t{energies[0]}\t{fs[0]}\t{broadening}\n")
                     else:
                         for i in range(len(energies)):
-                            f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[i],energies[i],fs[i],broadening))
-                    f.write("\n")   
-############################################################### 
+                            f.write(f"Excited State {numeros[i]}\t{energies[i]}\t{fs[i]}\t{broadening}\n")
+                    f.write("\n")
+###############################################################
 
 
 ##NORMALIZED GAUSSIAN##########################################
@@ -397,8 +236,8 @@ def gauss(x,v,s):
 ##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
 def calc_tdm(O,V):
     #Energy terms converted to J
-    term = e*(hbar2**2)/V
-    dipoles = np.sqrt(3*term*O/(2*mass))
+    term = E_CHARGE*(HBAR_J**2)/V
+    dipoles = np.sqrt(3*term*O/(2*MASS_E))
     #Conversion in au
     dipoles *= 1.179474389E29
     return np.mean(dipoles)
@@ -416,24 +255,24 @@ def naming(arquivo):
                 vers += 1
             else:
                 duplo = False
-    return new_arquivo        
+    return new_arquivo
 ###############################################################
 
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_emi_rate(xd,yd,dyd):
     #Integrates the emission spectrum
     IntEmi = np.trapz(yd,xd)
-    taxa   = (1/hbar)*IntEmi
-    error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
-    return taxa, error 
+    taxa   = (1/HBAR_EV)*IntEmi
+    error  = (1/HBAR_EV)*np.sqrt(np.trapz((dyd**2),xd))
+    return taxa, error
 ###############################################################
 
-##COMPUTES SPECTRA############################################# 
+##COMPUTES SPECTRA#############################################
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
-        constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
+        constante = (np.pi*(E_CHARGE**2)*HBAR_EV)/(2*nr*MASS_E*LIGHT_SPEED*EPSILON_0)*10**(20)
     elif tipo == 'emi':
-        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+        constante = ((nr**2)*(E_CHARGE**2)/(2*np.pi*HBAR_EV*MASS_E*(LIGHT_SPEED**3)*EPSILON_0))
     V, O, S = [], [], []
     N = 0
     with open("Samples.lx", 'r') as f:
@@ -451,7 +290,7 @@ def spectra(tipo, num_ex, nr):
                     S.append(float(line[5]))
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
-        fatal_error("You need to run steps 1 and 2 first! Goodbye!")
+        lx.parser.fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != coms*max(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.array(V)
@@ -464,7 +303,7 @@ def spectra(tipo, num_ex, nr):
         tdm = calc_tdm(O,V)
     left = max(min(V)-3*max(S),0.001)
     right = max(V)+ 3*max(S)
-    x  = np.linspace(left,right, int((right-left)/0.01))    
+    x  = np.linspace(left,right, int((right-left)/0.01))
     if tipo == 'abs':
         arquivo = 'cross_section.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
@@ -484,73 +323,14 @@ def spectra(tipo, num_ex, nr):
     else:
         segunda = '# Absorption from State: S0\n'
 
-    print(N, "geometries considered.")     
+    print(N, "geometries considered.")
     with open(arquivo, 'w') as f:
         f.write(primeira)
         f.write(segunda)
         for i in range(0,len(x)):
-            text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
+            text = f"{x[i]:.6f} {mean_y[i]:.6e} {sigma[i]:.6e}\n"
             f.write(text)
-    print('Spectrum printed in the {} file'.format(arquivo))                
-############################################################### 
-
-##GETS INPUT PARAMS FROM LOG FILES#############################
-def get_input_params(freqlog):
-    nproc, mem, header = '', '', ''
-    with open(freqlog, 'r') as f:
-        search = False
-        for line in f:
-            if '%nproc' in line.lower():
-                line = line.split('=')
-                nproc = line[-1].replace('\n','')
-            elif '%mem' in line.lower():
-                line = line.split('=')
-                mem = line[-1].replace('\n','')
-            elif "#" in line and not search and header == '':
-                search = True
-                header += line.lstrip().replace('\n','')
-            elif search and '----------' not in line:
-                header += line.lstrip().replace('\n','')
-            elif search and '----------' in line:
-                search = False
-                break
-    return nproc, mem, header        
-###############################################################
-
-##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
-def busca_input(freqlog):
-    base = 'lalala'
-    exc = ''
-    header = ''
-    nproc = '4'
-    mem   = '1GB'
-    scrf  = ''
-    nproc, mem, header = get_input_params(freqlog)
-    
-    if 'TDA' in header.upper():
-        exc = 'tda'
-        spec = 'EMISPCT'
-    elif 'TD' in header.upper():
-        exc = 'td'
-        spec = 'EMISPCT'
-    else:
-        spec = 'ABSSPCT'
-
-    if 'SCRF' in header.upper():
-        new = header.split()
-        for elem in new:
-            if 'SCRF' in elem:
-                scrf = elem
-                break     
-        
-    header = header.split()
-    base = ''
-    for elem in header:
-        if "/" in elem and 'IOP' not in elem.upper():
-            base += elem.replace('#','')
-        elif 'IOP' in elem.upper() and ('108' in elem or '107' in elem):
-            base += ' '+elem
-    return base, exc, nproc, mem, scrf, spec                
+    print(f'Spectrum printed in the {arquivo} file')
 ###############################################################
 
 ##CHECKS PROGRESS##############################################
@@ -571,13 +351,13 @@ def andamento():
                     if "Normal termination" in line:
                         count += 1
                     elif "Error termination" in line:
-                        error += 1    
+                        error += 1
         print("\n\nThere are", int(count/factor), "successfully completed calculations out of", len(coms), "inputs")
         if error > 0:
-            print("There are {} failed jobs. If you used option 2, check the nohup.out file for details.".format(error))                
+            print(f"There are {error} failed jobs. If you used option 2, check the nohup.out file for details.")                
         print(np.round(100*(count+error)/(factor*len(coms)),1), "% of the calculations have been run.")
     except:
-        print('No files found! Check the folder!')                    
+        print('No files found! Check the folder!')
 ###############################################################
 
 
@@ -589,19 +369,19 @@ def fetch_file(frase,ends):
             if end in file:
                 files.append(file)
     if len(files) == 0:
-        fatal_error("No {} file found. Goodbye!".format(frase))
-    freqlog = 'nada0022'    
+        lx.parser.fatal_error(f"No {frase} file found. Goodbye!")
+    freqlog = 'nada0022'
     for file in sorted(files):
         print("\n"+file)
-        resp = input('Is this the {} file? y ou n?\n'.format(frase))
+        resp = input(f'Is this the {frase} file? y ou n?\n')
         if resp.lower() == 'y':
             freqlog = file
             break
     if freqlog == 'nada0022':
-        fatal_error("No {} file found. Goodbye!".format(frase))
-    return freqlog  
-###############################################################  
-   
+        lx.parser.fatal_error(f"No {frase} file found. Goodbye!")
+    return freqlog
+###############################################################
+
 ##RUNS TASK MANAGER############################################
 def batch():
     script   = fetch_file('batch script?',['.sh'])    
@@ -612,8 +392,8 @@ def batch():
         int(limite)
         int(num)
     except:
-        fatal_error("These must be integers. Goodbye!")
-    folder = os.path.dirname(os.path.realpath(__file__)) 
+        lx.parser.fatal_error("These must be integers. Goodbye!")
+    folder = os.path.dirname(os.path.realpath(__file__))
     with open('limit.lx','w') as f:
         f.write(limite)
     subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, num, gaussian, '&'])
@@ -623,7 +403,7 @@ def batch():
 ##RUNS W TUNING################################################
 def omega_tuning():
     geomlog = fetch_file('input or log',['.com','.log'])
-    base, _, nproc, mem, _, _ = busca_input(geomlog)
+    base, _, nproc, mem, _, _ = lx.parser.busca_input(geomlog)
     if 'IOP' in base.upper() and ('108' in base or '107' in base):
         base2 = base.split()
         for elem in base2:
@@ -634,24 +414,24 @@ def omega_tuning():
     passo  = '0.025'
     relax  = 'y'
     print('This is the configuration taken from the file:\n')
-    print('Functional/basis: {}'.format(base))
-    print('%nproc='+nproc)    
+    print(f'Functional/basis: {base}')
+    print('%nproc='+nproc)
     print('%mem='+mem)
-    print('Initial Omega: {} bohr^-1'.format(omega1))
-    print('Step: {} bohr^-1'.format(passo))
+    print(f'Initial Omega: {omega1} bohr^-1')
+    print(f'Step: {passo} bohr^-1')
     print('Optimize at each step: yes')
     change = input('Are you satisfied with these parameters? y or n?\n')
     if change == 'n':
-        base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-        nproc  = default(nproc,'nproc={}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-        mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
-        omega1 = default(omega1,"Initial omega is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(omega1))       
-        passo  = default(passo,"Initial step is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(passo))       
+        base   = default(base,f"Functional/basis is {base}. If ok, Enter. Otherwise, type functional/basis.\n")
+        nproc  = default(nproc,f'nproc={nproc}. If ok, Enter. Otherwise, type it.\n')
+        mem    = default(mem,f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
+        omega1 = default(omega1,f"Initial omega is {omega1} bohr^-1. If ok, Enter. Otherwise, type it.\n")
+        passo  = default(passo,f"Initial step is {passo} bohr^-1. If ok, Enter. Otherwise, type it.\n")
         relax  = default(relax,"Optimize at each step: yes. If ok, Enter. Otherwise, type n\n")
     
-    script = fetch_file('batch script',['.sh'])    
+    script = fetch_file('batch script',['.sh'])
     gaussian = input('g16 or g09?\n')
-    folder = os.path.dirname(os.path.realpath(__file__)) 
+    folder = os.path.dirname(os.path.realpath(__file__))
     with open('limit.lx','w') as f:
         f.write('Running')
     subprocess.Popen(['nohup', 'python3', folder+'/omega.py', geomlog, base, nproc, mem, omega1, passo, relax, script, gaussian, '&'])
@@ -660,12 +440,12 @@ def omega_tuning():
 ##RUNS CONFORMATIONAL SEARCH###################################
 def conformational():
     freqlog = fetch_file('frequency',['.log'])
-    F, _ = pega_freq(freqlog)
+    F, _ = lx.parser.pega_freq(freqlog)
     F_active = F[:40]
-    T  = int(hbar*F_active[-1]/kb)
+    T  = int(HBAR_EV*F_active[-1]/BOLTZ_EV)
     DT = int(T/10)
     T, DT = str(T), str(DT)
-    base, _, nproc, mem, _, _ = busca_input(freqlog)
+    base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
     print('This is the configuration taken from the file:\n')
     print(f'Functional/basis: {base}')
     print(f'%nproc={nproc}')
@@ -689,10 +469,10 @@ def conformational():
         int(rounds)
         int(numjobs)
     except:
-        fatal_error("These must be integers. Goodbye!")
+        lx.parser.fatal_error("These must be integers. Goodbye!")
     with open('limit.lx','w') as f:
         f.write('Running')
-    folder = os.path.dirname(os.path.realpath(__file__)) 
+    folder = os.path.dirname(os.path.realpath(__file__))
     subprocess.Popen(['nohup', 'python3', folder+'/conf_search.py', freqlog, base, nproc, mem, T, DT, num_geoms, rounds,numjobs, script, gaussian, '&'])
 ###############################################################
 
@@ -703,7 +483,7 @@ def detect_sigma():
         files = [i for i in os.listdir('.') if 'Magnitudes' in i and '.lx' in i]
         file  = files[0]
         temp = float(file.split('_')[1].strip('K'))
-        sigma =  np.round(kb*temp,3)
+        sigma =  np.round(BOLTZ_EV*temp,3)
     except:
         sigma = 0.000
     return sigma
@@ -723,40 +503,6 @@ def get_spec():
     return tipo
 ###############################################################
 
-##FETCHES REFRACTIVE INDEX#####################################
-def get_nr():
-    buscar = False
-    coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
-    with open('Geometries/'+coms[0],'r') as f:
-        for line in f:
-            if 'SCRF' in line.upper():
-                buscar = True
-                break
-    if buscar:
-        logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
-        for log in logs:
-            with open('Geometries/'+log,'r') as f:
-                for line in f:
-                    if 'Solvent' in line and 'Eps' in line:
-                        line = line.split()
-                        nr = np.sqrt(float(line[6]))
-                        return nr
-    else:
-        return 1
-###############################################################
-
-##FETCHES CHARGE AND MULTIPLICITY##############################
-def get_cm(freqlog):
-    with open(freqlog,'r') as f:
-        for line in f:
-            if 'Charge' in line and 'Multiplicity' in line:
-                line = line.split()
-                charge = line[2]
-                mult   = line[5]
-                break
-    return charge+' '+mult
-###############################################################
-
 ##QUERY FUNCTION###############################################
 def default(a,frase):
     b = input(frase)
@@ -774,7 +520,7 @@ def set_eps(scrf):
             float(eps1)
             float(eps2)
         except:
-            fatal_error("The constants must be numbers. Goodbye!")
+            lx.parser.fatal_error("The constants must be numbers. Goodbye!")
         epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
     else:
         epss = '\n'
@@ -868,9 +614,9 @@ def ld():
         kappa = np.sqrt(float(kappa))
         Phi   = float(Phi)
     except:
-        fatal_error('These features must be numbers. Goodbye!')    
+        lx.parser.fatal_error('These features must be numbers. Goodbye!')    
     if Phi > 1 or Phi < 0:
-        fatal_error('Quantum yield must be between 0 and 1. Goodbye!')
+        lx.parser.fatal_error('Quantum yield must be between 0 and 1. Goodbye!')
 
     correct = input('Include correction for short distances? y or n?\n')
     if correct == 'y':
@@ -881,7 +627,6 @@ def ld():
         print('Not employing correction!')
 
     print('Computing...')
-    from lx.ld import run_ld 
     try:
         run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')

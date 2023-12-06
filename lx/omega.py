@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-import numpy as np
 import os
 import sys
-import subprocess
 import shutil
+import numpy as np
 import lx.tools
+import lx.parser
 
 ##GENERATES NEUTRAL INPUT######################################
 def gera_optcom(atomos,G,base,nproc,mem,omega,op):
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {}\n\nTITLE\n\n0 1\n".format(op)
+    header = f"%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {op}\n\nTITLE\n\n0 1\n"
     header = header.replace("JJJ",nproc).replace("MEM", mem).replace("BASE", base).replace("MMMMM",omega)
     file = "OPT_"+omega+"_.com"
     lx.tools.write_input(atomos,G,header,'',file)
@@ -45,7 +45,7 @@ def to_float(num):
         num = float(num)
     except:
         num = -np.inf
-    return num        
+    return num
 ###############################################################
 
 ##GETS HOMO ENERGY FROM LOG####################################
@@ -54,7 +54,7 @@ def pega_homo(file):
     with open(file, 'r') as f:
         for line in f:
             if ('OPT' in file and "Optimized Parameters" in line) :
-                HOMOS = [] 
+                HOMOS = []
             if "occ. eigenvalues" in line:
                 line = line.split()
                 homos = line[4:]
@@ -71,17 +71,17 @@ def pega_homo(file):
 ###############################################################
 
 ##RUNS CALCULATIONS############################################
-def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file,gaussian): 
-    omega = "{:05.0f}".format(omega)
-    file  = gera_optcom(atomos,G,base,nproc,mem,omega,op)
+def rodar_omega(atomos,geom,base,nproc,mem,omega,op,batch_file,gaussian):
+    omega = f"{omega:05.0f}"
+    file  = gera_optcom(atomos,geom,base,nproc,mem,omega,op)
     remover = []
     if op == 'opt':
         lx.tools.rodar_lista([file], batch_file, gaussian, 'omega.lx')
-        G, atomos = lx.tools.pega_geom(file[:-3]+"log")
-        files = gera_ioncom(atomos,G,base,nproc,mem,omega)
+        geom, atomos = lx.parser.pega_geom(file[:-3]+"log")
+        files = gera_ioncom(atomos,geom,base,nproc,mem,omega)
         lx.tools.rodar_lista(files, batch_file, gaussian, 'omega.lx')
     else:
-        files = gera_ioncom(atomos,G,base,nproc,mem,omega)
+        files = gera_ioncom(atomos,geom,base,nproc,mem,omega)
         lx.tools.rodar_lista([file]+files, batch_file, gaussian, 'omega.lx')
 
     logs = files + [file]
@@ -98,23 +98,23 @@ def rodar_omega(atomos,G,base,nproc,mem,omega,op,batch_file,gaussian):
 
     try:
         os.mkdir("Logs")
-    except:
+    except FileExistsError:
         pass
     for file in remover:
         shutil.move(file, 'Logs/'+file)
         shutil.move(file[:-3]+'log', 'Logs/'+file[:-3]+'log')
     J = np.sqrt(((homo_neutro + cation - neutro)**2 + (homo_anion + neutro - anion)**2))*(27.2114)
-    return J, G, atomos
+    return J, geom, atomos
 ###############################################################
 
 ##WRITES LOG WITH RESULTS######################################
-def write_tolog(omegas,Js,frase):    
+def write_tolog(omegas,Js,frase):
     with open("omega.lx", 'w') as f:
-        f.write('#{}    {}\n'.format('w(10^4 bohr^-1)','J(eV)'))
+        f.write('#w(10^4 bohr^-1)    J(eV)\n')
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         for i in range(len(list1)):
-            f.write("{:05.0f}               {:.4f}\n".format(list1[i],list2[i])) 
-        f.write("\n{} {:05.0f}\n".format(frase,list1[list2.index(min(list2))])) 
+            f.write(f"{list1[i]:05.0f}               {list2[i]:.4f}\n")
+        f.write(f"\n{frase} {list1[list2.index(min(list2))]:05.0f}\n")
 ###############################################################
 
 def main():
@@ -132,14 +132,14 @@ def main():
         int(nproc)
         passo  = float(passo)*10000
         omega1 = float(omega1)*10000
-    except:
-        lx.tools.fatal_error('nproc, omega and step must be numbers. Goodbye!')
+    except ValueError:
+        lx.parser.fatal_error('nproc, omega and step must be numbers. Goodbye!')
     if relax.lower() == 'y':
         op = 'opt'
     elif relax.lower() == 'n':
         op = ''
     else:
-        lx.tools.fatal_error('It must be either y or n. Goodbye!')    
+        lx.parser.fatal_error('It must be either y or n. Goodbye!')
 
     omegas, Js = [], []
     oms, jotas = [], []
@@ -152,27 +152,27 @@ def main():
                     omegas.append(om)
                     Js.append(float(line[1]))
         menor = omegas[Js.index(min(Js))]
-        G, atomos = lx.tools.pega_geom('Logs/OPT_{:05.0f}_.log'.format(menor))            
+        G, atomos = lx.parser.pega_geom(f'Logs/OPT_{menor:05.0f}_.log')
     except:
-        G, atomos  = lx.tools.pega_geom(geomlog)
+        G, atomos  = lx.parser.pega_geom(geomlog)
 
     while passo > 25:
         if omega1 in omegas:
             ind = omegas.index(omega1)
             J = Js[ind]
         else:
-            J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script,gaussian)              
+            J, G, atomos = rodar_omega(atomos,G,base,nproc,mem,omega1,op,script,gaussian)
             omegas.append(omega1)
-            Js.append(J)  
+            Js.append(J)
         oms.append(omega1)
-        jotas.append(J)    
+        jotas.append(J)
         try:
-            if jotas[-1] - jotas[-2] > 0:     
+            if jotas[-1] - jotas[-2] > 0:
                 passo = int(passo/2)
-                sign = -1*np.sign(int(oms[-1]) - int(oms[-2])) 
-            else:           
+                sign = -1*np.sign(int(oms[-1]) - int(oms[-2]))
+            else:
                 sign = +1*np.sign(int(oms[-1]) - int(oms[-2]))
-            omega1 += sign*passo 
+            omega1 += sign*passo
 
         except:
             omega1 += passo
@@ -181,24 +181,14 @@ def main():
 
     write_tolog(omegas,Js,'#Done! Optimized value:')
     menor = omegas[Js.index(min(Js))]
-    log = 'Logs/OPT_{:05.0f}_.log'.format(menor)
-    G, atomos = lx.tools.pega_geom(log)    
-    base, _, nproc, mem, scrf, _ = lx.tools.busca_input(log)
-    cm = lx.tools.get_cm(log)
-    header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
+    log = f'Logs/OPT_{menor:05.0f}_.log'
+    G, atomos = lx.parser.pega_geom(log)
+    base, _, nproc, mem, scrf, _ = lx.parser.busca_input(log)
+    cm = lx.parser.get_cm(log)
+    header = f'%nproc={nproc}\n%mem={mem}\n# {base} {scrf}\n\nTITLE\n\n{cm}\n'
     lx.tools.write_input(atomos,G, header,'', 'tuned_w.com')
 
 
 
 if __name__ == "__main__":
-    sys.exit(main())        
-
-
-        
-        
-        
-
-
-    
-        
-
+    sys.exit(main())
