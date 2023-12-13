@@ -826,6 +826,12 @@ class Watcher:
                 self.running = [elem for elem in self.running if elem not in concluded]
                 keep = self.keep_going(num)
 
+    def hold_watch(self):
+        while len(self.files) > 0:
+            self.check()
+            time.sleep(20)
+            
+
 ###############################################################
 
 ##CHECKS PROGRESS##############################################

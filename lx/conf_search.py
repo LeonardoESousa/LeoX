@@ -210,6 +210,7 @@ def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
     lx.tools.write_input(atomos, geom, header, "", file)
     the_watcher = lx.tools.Watcher('.',files=[file])
     the_watcher.run(batch_file, gaussian, 1)
+    the_watcher.hold_watch()
     #lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
     log = file[:-3] + "log"
     with open(log, "r") as f:
@@ -277,6 +278,7 @@ def main():
         lista = make_geoms(freqlog, num_geoms, temp_0, header, "")
         the_watcher = lx.tools.Watcher('.',files=lista)
         the_watcher.run(script, gaussian, numjobs)
+        the_watcher.hold_watch()
         #lx.tools.rodar_lista(lista, script, gaussian, "conformation.lx", numjobs)
         conformations = classify(conformations, ".")
         write_report(conformations, i + 1, rounds, temp_0)
