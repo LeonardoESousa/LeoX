@@ -107,13 +107,16 @@ def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian)
     file = gera_optcom(atomos, geom, base, nproc, mem, omega, op)
     remover = []
     if op == "opt":
-        lx.tools.rodar_lista([file], batch_file, gaussian, "omega.lx")
+        the_watcher = lx.tools.Watcher('.',files=[file])
+        the_watcher.run(batch_file, gaussian, 1)
         geom, atomos = lx.parser.pega_geom(file[:-3] + "log")
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
-        lx.tools.rodar_lista(files, batch_file, gaussian, "omega.lx")
+        the_watcher = lx.tools.Watcher('.',files=files)
+        the_watcher.run(batch_file, gaussian, 1)
     else:
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
-        lx.tools.rodar_lista([file] + files, batch_file, gaussian, "omega.lx")
+        the_watcher = lx.tools.Watcher('.',files=files)
+        the_watcher.run(batch_file, gaussian, 1)
 
     logs = files + [file]
     for file in logs:

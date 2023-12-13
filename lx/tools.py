@@ -130,37 +130,27 @@ def start_counter():
 
 ##DISTORTS GEOMETRIES IN DIRECTION OF IMAG FREQ################
 def distort(freqlog):
-    num_geoms = 1
-    T = 300
-    G, atomos = lx.parser.pega_geom(freqlog)
-    F, M = lx.parser.pega_freq(freqlog)
-    NNC = lx.parser.pega_modos(G, freqlog)
-    num_atom = np.shape(G)[0]
-    A = np.zeros((3 * num_atom, num_geoms))
+    temp = 300
+    geom, atomos = lx.parser.pega_geom(freqlog)
+    freqs, masses = lx.parser.pega_freq(freqlog)
+    normal_coords = lx.parser.pega_modos(geom, freqlog)
+    Gfinal = geom.copy()
     # check for imaginary frequencies
-    if np.all(F > 0):
+    if np.all(freqs > 0):
         lx.parser.fatal_error("No imaginary frequencies found. Exiting...")
-    for i in range(len(F)):
-        if F[i] < 0:
-            f = -1 * F[i]
+    for i, freq in enumerate(freqs):
+        if freq < 0:
+            f = -1 * freq
             q = 3 * np.sqrt(
-                HBAR_J / (2 * M[i] * f * np.tanh(HBAR_EV * f / (2 * BOLTZ_EV * T)))
+                HBAR_J / (2 * masses[i] * f * np.tanh(HBAR_EV * f / (2 * BOLTZ_EV * temp)))
             )
             q = np.array(q)
-            A += np.outer(NNC[:, i], q)
-    for n in range(np.shape(A)[1]):
-        A1 = np.reshape(A[:, n], (num_atom, 3))
-        try:
-            Gfinal = np.hstack((Gfinal, A1 + G))
-        except:
-            Gfinal = A1 + G
+            Gfinal += q * normal_coords[:, :, i]
     base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
     cm = lx.parser.get_cm(freqlog)
     header = f"%nproc={nproc}\n%mem={mem}\n# {base} opt freq=noraman\n\nDISTORTED GEOM\n\n{cm}\n"
     bottom = "\n"
-    for n in range(0, np.shape(A)[1], 3):
-        Gfinal = Gfinal[:, n : n + 3]
-        write_input(atomos, Gfinal, header, bottom, "distorted.com")
+    write_input(atomos, Gfinal, header, bottom, "distorted.com")
     print("New input file written to distorted.com")
 
 
@@ -458,56 +448,6 @@ def spectra(tipo, num_ex, nr):
 
 ###############################################################
 
-
-##CHECKS PROGRESS##############################################
-def andamento():
-    try:
-        coms = [
-            file
-            for file in os.listdir("Geometries")
-            if "Geometr" in file and ".com" in file
-        ]
-        logs = [
-            file
-            for file in os.listdir("Geometries")
-            if "Geometr" in file and ".log" in file
-        ]
-        factor = 1
-        with open("Geometries/" + coms[0], "r") as f:
-            for line in f:
-                if "Link1" in line:
-                    factor = 2
-        count = 0
-        error = 0
-        for file in logs:
-            with open("Geometries/" + file, "r") as f:
-                for line in f:
-                    if "Normal termination" in line:
-                        count += 1
-                    elif "Error termination" in line:
-                        error += 1
-        print(
-            "\n\nThere are",
-            int(count / factor),
-            "successfully completed calculations out of",
-            len(coms),
-            "inputs",
-        )
-        if error > 0:
-            print(
-                f"There are {error} failed jobs. If you used option 2, check the nohup.out file for details."
-            )
-        print(
-            np.round(100 * (count + error) / (factor * len(coms)), 1),
-            "% of the calculations have been run.",
-        )
-    except:
-        print("No files found! Check the folder!")
-
-
-###############################################################
-
-
 ##FETCHES  FILES###############################################
 def fetch_file(frase, ends):
     files = []
@@ -534,22 +474,20 @@ def fetch_file(frase, ends):
 
 ##RUNS TASK MANAGER############################################
 def batch():
-    script = fetch_file("batch script?", [".sh"])
-    num = input("Number of jobs in each batch?\n")
+    script = fetch_file("batch.sh", ["batch.sh"])
     limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    num = input("Number of calculations in each job?\n")
     gaussian = input("g16 or g09?\n")
     try:
-        int(limite)
+        limite = int(limite)
         int(num)
-    except:
+    except ValueError:
         lx.parser.fatal_error("These must be integers. Goodbye!")
-    folder = os.path.dirname(os.path.realpath(__file__))
-    with open("limit.lx", "w") as f:
-        f.write(limite)
+    with open("limit.lx", "w",encoding="utf-8") as limit_file:
+        limit_file.write(str(limite))
     subprocess.Popen(
-        ["nohup", "python3", folder + "/batch_lx.py", script, num, gaussian, "&"]
+        ["nohup", "lx_batch_run", script, gaussian, num, "&"]
     )
-
 
 ###############################################################
 
@@ -624,18 +562,18 @@ def omega_tuning():
 ##RUNS CONFORMATIONAL SEARCH###################################
 def conformational():
     freqlog = fetch_file("frequency", [".log"])
-    F, _ = lx.parser.pega_freq(freqlog)
-    F_active = F[:40]
-    T = int(HBAR_EV * F_active[-1] / BOLTZ_EV)
-    DT = int(T / 10)
-    T, DT = str(T), str(DT)
+    freqs, _ = lx.parser.pega_freq(freqlog)
+    freqs_active = freqs[:40]
+    temp = int(HBAR_EV * freqs_active[-1] / BOLTZ_EV)
+    delta_temp = int(temp / 10)
+    temp, delta_temp = str(temp), str(delta_temp)
     base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
     print("This is the configuration taken from the file:\n")
     print(f"Functional/basis: {base}")
     print(f"%nproc={nproc}")
     print(f"%mem={mem}")
-    print(f"Initial Temperature: {T} K")
-    print(f"Temperature step: {DT} K")
+    print(f"Initial Temperature: {temp} K")
+    print(f"Temperature step: {delta_temp} K")
     change = input("Are you satisfied with these parameters? y or n?\n")
     if change == "n":
         base = default(
@@ -644,11 +582,11 @@ def conformational():
         )
         nproc = default(nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
         mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
-        T = default(
-            T, f"Initial temperature is {T} K. If ok, Enter. Otherwise, type it.\n"
+        temp = default(
+            temp, f"Initial temperature is {temp} K. If ok, Enter. Otherwise, type it.\n"
         )
-        DT = default(
-            DT, f"Temperature step is {DT} K. If ok, Enter. Otherwise, type it.\n"
+        delta_temp = default(
+            delta_temp, f"Temperature step is {delta_temp} K. If ok, Enter. Otherwise, type it.\n"
         )
     script = fetch_file("batch script", [".sh"])
     num_geoms = input("Number of geometries sampled at each round?\n")
@@ -673,8 +611,8 @@ def conformational():
             base,
             nproc,
             mem,
-            T,
-            DT,
+            temp,
+            delta_temp,
             num_geoms,
             rounds,
             numjobs,
@@ -773,50 +711,130 @@ def abort_batch():
 
 
 ##DELETES CHK FILES############################################
-def delchk(input_file, term):
+def delchk(input_file):
     num = input_file.split("-")[1]
-    if term == 1:
-        a = ""
-    elif term == 2:
-        a = "2"
-    try:
-        os.remove(f"step{a}_{num}.chk")
-    except:
-        pass
-
-
-###############################################################
-
-
-##CHECKS WHETHER JOBS ARE DONE#################################
-def watcher(files, counter):
-    rodando = files.copy()
-    done = []
-    for input_file in rodando:
-        term = 0
-        error = False
+    chks = [i for i in os.listdir(".") if f"_{num}.chk" in i]
+    for chk in chks:
         try:
-            with open(input_file[:-3] + "log", "r") as f:
-                for line in f:
-                    if "Normal termination" in line:
-                        term += 1
-                        if counter == 2:
-                            delchk(input, term)
-                    elif "Error termination" in line:
-                        error = True
-                        print(f"The following job returned an error: {input_file}")
-                        print("Please check the file for any syntax errors.")
-            if term == counter or error:
-                done.append(input)
-        except:
+            os.remove(chk)
+        except FileNotFoundError:
             pass
-    for elem in done:
-        del rodando[rodando.index(elem)]
-    return rodando
 
 
 ###############################################################
 
+##CHECKS WHETHER THE JOB IS TWO STEP###########################
+def set_factor(file):
+    factor = 1
+    with open(file, "r") as f:
+        for line in f:
+            if "Link1" in line:
+                factor = 2
+                break
+    return factor
+###############################################################
+
+class Watcher:
+    def __init__(self, folder,files=None,counter=1):
+        self.folder = folder
+        if files is None: 
+            self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
+            self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        else:
+            self.files = [i[:-4] for i in files]
+        self.number_inputs = len(self.files)
+        self.done = []
+        self.error = []
+        self.running = []
+        self.running_batches = 0
+        self.counter = counter
+
+    def check(self):
+        list_to_check = self.files.copy()
+        for input_file in list_to_check:
+            term = 0
+            try:
+                with open(self.folder + "/" + input_file + ".log", "r",encoding="utf-8") as log_file:
+                    for line in log_file:
+                        if "Normal termination" in line:
+                            term += 1
+                            if term == self.counter:
+                                if self.counter == 2:
+                                    delchk(input)
+                                self.done.append(input_file)
+                                del self.files[self.files.index(input_file)]
+                                break
+                        elif "Error termination" in line:
+                            self.error.append(input_file)
+                            del self.files[self.files.index(input_file)]
+                            break
+            except FileNotFoundError:
+                pass
+
+    def report(self):
+        self.check()
+        print('\n\n')
+        print(f'There are {len(self.done)} successfully completed calculations out of {self.number_inputs} inputs.')
+        print(f'{100 * len(self.done) / self.number_inputs:.1f}% of the calculations have been run.')
+        if len(self.error) > 0:
+            print(f"There are {len(self.error)} failed jobs.")
+            print('These are: ', self.error)
+
+    def limit(self):
+        if self.folder == ".":
+            fold = "."
+        else:
+            fold = '..'
+        try:
+            return np.loadtxt(f"{fold}/limit.lx",encoding='utf-8')
+        except (OSError,FileNotFoundError):
+            sys.exit()
+
+    def keep_going(self,num):
+        if len(self.running) / num < self.limit():
+            return False
+        return True
+
+    def clean_failed(self):
+        for failed in self.error:
+            os.remove(self.folder + "/" + failed + ".log")
+        self.files += self.error
+        self.error = []
+
+    def run(self, batch_file, gaussian, num):
+        self.check()
+        self.clean_failed()
+        inputs = self.files.copy()
+        while len(inputs) > 0:
+            next_inputs = inputs[:int(num)]
+            command = ''
+            for input_file in next_inputs:
+                command += f"{gaussian} {input_file}.com &\n"
+                command += 'sleep 5\n'
+                self.running.append(input_file)
+                inputs.remove(input_file)
+            command += "wait"
+            with open(f"cmd_{self.running_batches}_.sh", "w",encoding='utf-8') as cmd:
+                cmd.write(command)
+            sub = subprocess.call(["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
+            self.running_batches += 1
+            keep = self.keep_going(num)
+            while keep:
+                time.sleep(20)
+                self.check()
+                concluded = self.done + self.error
+                self.running = [elem for elem in self.running if elem not in concluded]
+                keep = self.keep_going(num)
+
+###############################################################
+
+##CHECKS PROGRESS##############################################
+def andamento():
+    files = [i for i in os.listdir("Geometries") if "Geometr" in i and ".com" in i]
+    factor = set_factor(files[0])
+    the_watcher = Watcher('Geometries',counter=factor)
+    the_watcher.report()
+###############################################################
 
 ##GETS SPECTRA#################################################
 def search_spectra():
@@ -834,7 +852,6 @@ def search_spectra():
 
 
 ###############################################################
-
 
 ##RUNS EXCITON ANALYSIS########################################
 def ld():
@@ -872,41 +889,6 @@ def ld():
         print("Results can be found in the ld.lx file")
     except:
         print("Something went wrong. Check if the name of the files are correct.")
-
-
-###############################################################
-
-
-##CHECKS WHETHER JOBS ARE DONE#################################
-def hold_watch(files, log):
-    rodando = files.copy()
-    while len(rodando) > 0:
-        rodando = watcher(rodando, 1)
-        if "limit.lx" not in os.listdir("."):
-            with open(log, "a") as f:
-                f.write("\n#Aborted!")
-            sys.exit()
-        time.sleep(30)
-
-
-###############################################################
-
-
-##RUNS CALCULATIONS############################################
-def rodar_lista(lista, batch_file, gaussian, log, num=1):
-    # number of scripts is integer division of number of files by num
-    n = len(lista) // num
-    for i in range(n):
-        with open(f"cmd_{i}.sh", "w") as f:
-            for file in lista[i * num : (i + 1) * num]:
-                f.write(f"{gaussian} {file}\n")
-        subprocess.call(["bash", batch_file, f"cmd_{i}.sh"])
-    if len(lista) % num != 0:
-        with open(f"cmd_{n+1}.sh", "w") as f:
-            for file in lista[n * num :]:
-                f.write(f"{gaussian} {file}\n")
-        subprocess.call(["bash", batch_file, f"cmd_{n+1}.sh"])
-    hold_watch(lista, log)
 
 
 ###############################################################

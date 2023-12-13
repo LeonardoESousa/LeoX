@@ -30,11 +30,11 @@ def make_geoms(freqlog, num_geoms, temp, header, bottom):
         lx.tools.write_input(
             atomos,
             Gfinal,
-            header.replace("UUUUU", str((n + 3) // 3)),
-            bottom.replace("UUUUU", str((n + 3) // 3)),
-            "Geometry-" + str((n + 3) // 3 + counter) + "-.com",
+            header.replace("UUUUU", str(n + 1)),
+            bottom.replace("UUUUU", str(n + 1)),
+            f"Geometry-{n+1+counter}-.com",
         )
-        lista.append("Geometry-" + str((n + 3) // 3 + counter) + "-.com")
+        lista.append(f"Geometry-{n+1+counter}-.com")
     return lista
 
 
@@ -208,7 +208,9 @@ def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
     header = f"%nproc={nproc}\n%mem={mem}\n# freq=(noraman) nosymm  {base} \n\nTITLE\n\n{cm}\n"
     file = f"Freq-{origin:.0f}-.com"
     lx.tools.write_input(atomos, geom, header, "", file)
-    lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
+    the_watcher = lx.tools.Watcher('.',files=[file])
+    the_watcher.run(batch_file, gaussian, 1)
+    #lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
     log = file[:-3] + "log"
     with open(log, "r") as f:
         for line in f:
@@ -273,7 +275,9 @@ def main():
     groups = len(conformations)
     for i in range(rounds):
         lista = make_geoms(freqlog, num_geoms, temp_0, header, "")
-        lx.tools.rodar_lista(lista, script, gaussian, "conformation.lx", numjobs)
+        the_watcher = lx.tools.Watcher('.',files=lista)
+        the_watcher.run(script, gaussian, numjobs)
+        #lx.tools.rodar_lista(lista, script, gaussian, "conformation.lx", numjobs)
         conformations = classify(conformations, ".")
         write_report(conformations, i + 1, rounds, temp_0)
 
