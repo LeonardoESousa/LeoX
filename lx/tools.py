@@ -185,7 +185,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True):
                 start_geom += q * normal_coord[:, :, i]
                 nums.append(q)
             new = adjacency(start_geom, atomos)
-            if 0.5 * np.sum(np.abs(old - new)) < 2:
+            if 0.5 * np.sum(np.abs(old - new)) < 2 or not warning:
                 ok = True
                 structures[:, :, j] = start_geom
             else:
