@@ -536,7 +536,7 @@ def omega_tuning():
     gaussian = input("g16 or g09?\n")
     folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w") as f:
-        f.write("1")
+        f.write("10")
     subprocess.Popen(
         [
             "nohup",

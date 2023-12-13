@@ -113,12 +113,12 @@ def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian)
         geom, atomos = lx.parser.pega_geom(file[:-3] + "log")
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
         the_watcher = lx.tools.Watcher('.',files=files)
-        the_watcher.run(batch_file, gaussian, 1)
+        the_watcher.run(batch_file, gaussian, 2)
         the_watcher.hold_watch()
     else:
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
-        the_watcher = lx.tools.Watcher('.',files=files)
-        the_watcher.run(batch_file, gaussian, 1)
+        the_watcher = lx.tools.Watcher('.',files=[file]+files)
+        the_watcher.run(batch_file, gaussian, 3)
         the_watcher.hold_watch()
 
     logs = files + [file]
