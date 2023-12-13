@@ -602,7 +602,7 @@ def conformational():
     except:
         lx.parser.fatal_error("These must be integers. Goodbye!")
     with open("limit.lx", "w") as f:
-        f.write("Running")
+        f.write("10")
     folder = os.path.dirname(os.path.realpath(__file__))
     subprocess.Popen(
         [
