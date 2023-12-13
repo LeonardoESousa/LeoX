@@ -169,7 +169,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True):
         freqs[freqs < 0] *= -1
         mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
         freqs = freqs[mask]
-        normal_coord = normal_coord[:, mask]
+        normal_coord = normal_coord[:,:, mask]
     structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
     scales = 1e10 * np.sqrt(
         HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
@@ -568,6 +568,8 @@ def conformational():
     delta_temp = int(temp / 10)
     temp, delta_temp = str(temp), str(delta_temp)
     base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
+    if base == '':
+        base = 'pm6'
     print("This is the configuration taken from the file:\n")
     print(f"Functional/basis: {base}")
     print(f"%nproc={nproc}")
