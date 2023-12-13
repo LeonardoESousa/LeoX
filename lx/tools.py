@@ -809,8 +809,7 @@ class Watcher:
             next_inputs = inputs[:int(num)]
             command = ''
             for input_file in next_inputs:
-                command += f"{gaussian} {input_file}.com &\n"
-                command += 'sleep 5\n'
+                command += f"{gaussian} {input_file}.com \n"
                 self.running.append(input_file)
                 inputs.remove(input_file)
             command += "wait"
