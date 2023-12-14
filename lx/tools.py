@@ -83,8 +83,11 @@ def adjacency(geom, atoms):
 
 
 def fingerprint(file, folder):
-    geom, atoms = lx.parser.pega_geom(folder + "/" + file)
-    cm = adjacency(geom, atoms)
+    try:
+        geom, atoms = lx.parser.pega_geom(folder + "/" + file)
+        cm = adjacency(geom, atoms)
+    except UnboundLocalError:
+        cm = np.zeros((1, 1))
     return cm
 
 
