@@ -158,8 +158,6 @@ def distort(freqlog):
 
 
 ###############################################################
-
-
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = lx.parser.pega_geom(freqlog)
     old = adjacency(geom, atomos)
@@ -182,12 +180,9 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         ok = False
         while not ok:
             start_geom = geom.copy()
-            nums = []
-            for i, scale in enumerate(scales):
-                normal = norm(scale=scale, loc=0)
-                q = normal.rvs(size=1)
-                start_geom += q * normal_coord[:, :, i]
-                nums.append(q)
+            qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
+            qs = np.array(qs)
+            start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
             new = adjacency(start_geom, atomos)
             if 0.5 * np.sum(np.abs(old - new)) < 2 or not warning:
                 ok = True
@@ -198,11 +193,10 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
                 progress = 100 * (j + 1) / num_geoms
                 text = f"{progress:2.1f}%"
                 print(" ", text, "of the geometries done.", rejected_geoms, "geometries rejected", end="\r", flush=True)
-                nums = np.array(nums).T
         try:
-            numbers = np.vstack((numbers, nums))
+            numbers = np.vstack((numbers, qs.T))
         except UnboundLocalError:
-            numbers = nums
+            numbers = qs.T
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
 
