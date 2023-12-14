@@ -102,7 +102,7 @@ def pega_homo(file):
 
 
 ##RUNS CALCULATIONS############################################
-def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian):
+def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian, numjobs):
     omega = f"{omega:05.0f}"
     file = gera_optcom(atomos, geom, base, nproc, mem, omega, op)
     remover = []
@@ -113,12 +113,12 @@ def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian)
         geom, atomos = lx.parser.pega_geom(file[:-3] + "log")
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
         the_watcher = lx.tools.Watcher('.',files=files)
-        the_watcher.run(batch_file, gaussian, 2)
+        the_watcher.run(batch_file, gaussian, min(numjobs,2))
         the_watcher.hold_watch()
     else:
         files = gera_ioncom(atomos, geom, base, nproc, mem, omega)
         the_watcher = lx.tools.Watcher('.',files=[file]+files)
-        the_watcher.run(batch_file, gaussian, 3)
+        the_watcher.run(batch_file, gaussian, min(numjobs,3))
         the_watcher.hold_watch()
 
     logs = files + [file]
@@ -163,29 +163,33 @@ def write_tolog(omegas, Js, frase):
 
 
 def main():
-    geomlog = sys.argv[1]
-    base = sys.argv[2]
-    nproc = sys.argv[3]
-    mem = sys.argv[4]
-    omega1 = sys.argv[5]
-    passo = sys.argv[6]
-    relax = sys.argv[7]
-    script = sys.argv[8]
-    gaussian = sys.argv[9]
+    GEOMLOG = sys.argv[1]
+    BASE = sys.argv[2]
+    NPROC = sys.argv[3]
+    MEM = sys.argv[4]
+    OMEGA1 = sys.argv[5]
+    PASSO = sys.argv[6]
+    RELAX = sys.argv[7]
+    SCRIPT = sys.argv[8]
+    GAUSSIAN = sys.argv[9]
+    PARALLEL = sys.argv[10]
 
     try:
-        int(nproc)
-        passo = float(passo) * 10000
-        omega1 = float(omega1) * 10000
+        int(NPROC)
+        PASSO = float(PASSO) * 10000
+        OMEGA1 = float(OMEGA1) * 10000
     except ValueError:
         lx.parser.fatal_error("nproc, omega and step must be numbers. Goodbye!")
-    if relax.lower() == "y":
+    if RELAX.lower() == "y":
         op = "opt"
-    elif relax.lower() == "n":
+    elif RELAX.lower() == "n":
         op = ""
     else:
         lx.parser.fatal_error("It must be either y or n. Goodbye!")
-
+    if PARALLEL.lower() == "y":    
+        numjobs = 10
+    else:
+        numjobs = 1    
     omegas, Js = [], []
     oms, jotas = [], []
     try:
@@ -199,39 +203,39 @@ def main():
         menor = omegas[Js.index(min(Js))]
         G, atomos = lx.parser.pega_geom(f"Logs/OPT_{menor:05.0f}_.log")
     except:
-        G, atomos = lx.parser.pega_geom(geomlog)
+        G, atomos = lx.parser.pega_geom(GEOMLOG)
 
-    while passo > 25:
-        if omega1 in omegas:
-            ind = omegas.index(omega1)
+    while PASSO > 25:
+        if OMEGA1 in omegas:
+            ind = omegas.index(OMEGA1)
             J = Js[ind]
         else:
             J, G, atomos = rodar_omega(
-                atomos, G, base, nproc, mem, omega1, op, script, gaussian
+                atomos, G, BASE, NPROC, MEM, OMEGA1, op, SCRIPT, GAUSSIAN, numjobs
             )
-            omegas.append(omega1)
+            omegas.append(OMEGA1)
             Js.append(J)
-        oms.append(omega1)
+        oms.append(OMEGA1)
         jotas.append(J)
         try:
             if jotas[-1] - jotas[-2] > 0:
-                passo = int(passo / 2)
+                PASSO = int(PASSO / 2)
                 sign = -1 * np.sign(int(oms[-1]) - int(oms[-2]))
             else:
                 sign = +1 * np.sign(int(oms[-1]) - int(oms[-2]))
-            omega1 += sign * passo
+            OMEGA1 += sign * PASSO
 
         except:
-            omega1 += passo
+            OMEGA1 += PASSO
         write_tolog(omegas, Js, "#Best value so far:")
 
     write_tolog(omegas, Js, "#Done! Optimized value:")
     menor = omegas[Js.index(min(Js))]
     log = f"Logs/OPT_{menor:05.0f}_.log"
     G, atomos = lx.parser.pega_geom(log)
-    base, _, nproc, mem, scrf, _ = lx.parser.busca_input(log)
+    BASE, _, NPROC, MEM, scrf, _ = lx.parser.busca_input(log)
     cm = lx.parser.get_cm(log)
-    header = f"%nproc={nproc}\n%mem={mem}\n# {base} {scrf}\n\nTITLE\n\n{cm}\n"
+    header = f"%nproc={NPROC}\n%mem={MEM}\n# {BASE} {scrf}\n\nTITLE\n\n{cm}\n"
     lx.tools.write_input(atomos, G, header, "", "tuned_w.com")
 
 

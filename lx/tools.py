@@ -453,24 +453,11 @@ def spectra(tipo, num_ex, nr):
 
 ##FETCHES  FILES###############################################
 def fetch_file(frase, ends):
-    files = []
     for file in [i for i in os.listdir(".")]:
         for end in ends:
             if end in file:
-                files.append(file)
-    if len(files) == 0:
-        lx.parser.fatal_error(f"No {frase} file found. Goodbye!")
-    freqlog = "nada0022"
-    for file in sorted(files):
-        print("\n" + file)
-        resp = input(f"Is this the {frase} file? y ou n?\n")
-        if resp.lower() == "y":
-            freqlog = file
-            break
-    if freqlog == "nada0022":
-        lx.parser.fatal_error(f"No {frase} file found. Goodbye!")
-    return freqlog
-
+                return file
+    lx.parser.fatal_error(f"No {frase} file found. Goodbye!")
 
 ###############################################################
 
@@ -515,6 +502,7 @@ def omega_tuning():
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
     print("Optimize at each step: yes")
+    print("Parallelization: yes")
     change = input("Are you satisfied with these parameters? y or n?\n")
     if change == "n":
         base = default(
@@ -534,9 +522,9 @@ def omega_tuning():
         relax = default(
             relax, "Optimize at each step: yes. If ok, Enter. Otherwise, type n\n"
         )
-
-    script = fetch_file("batch script", [".sh"])
+    script = fetch_file("batch script", ["batch.sh"])
     gaussian = input("g16 or g09?\n")
+    parallel = input("Parallelization: y/n")
     folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w") as f:
         f.write("10")
@@ -554,6 +542,7 @@ def omega_tuning():
             relax,
             script,
             gaussian,
+            parallel,
             "&",
         ]
     )
@@ -593,7 +582,7 @@ def conformational():
         delta_temp = default(
             delta_temp, f"Temperature step is {delta_temp} K. If ok, Enter. Otherwise, type it.\n"
         )
-    script = fetch_file("batch script", [".sh"])
+    script = fetch_file("batch script", ["batch.sh"])
     num_geoms = input("Number of geometries sampled at each round?\n")
     rounds = input("Number of rounds?\n")
     numjobs = input("Number of jobs in each batch?\n")
@@ -602,7 +591,7 @@ def conformational():
         int(num_geoms)
         int(rounds)
         int(numjobs)
-    except:
+    except ValueError:
         lx.parser.fatal_error("These must be integers. Goodbye!")
     with open("limit.lx", "w") as f:
         f.write("10")
