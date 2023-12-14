@@ -830,8 +830,8 @@ class Watcher:
     def hold_watch(self):
         while len(self.files) > 0:
             self.check()
+            _ = self.limit()
             time.sleep(20)
-            
 
 ###############################################################
 
