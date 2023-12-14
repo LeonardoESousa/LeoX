@@ -160,12 +160,13 @@ def distort(freqlog):
 ###############################################################
 
 
-def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True):
+def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = lx.parser.pega_geom(freqlog)
     old = adjacency(geom, atomos)
     freqs, masses = lx.parser.pega_freq(freqlog)
     normal_coord = lx.parser.pega_modosLP(geom, freqlog)
     # check for negative frequencies
+    rejected_geoms = 0
     if warning:
         lx.parser.double_check(freqlog)
     else:
@@ -192,8 +193,12 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True):
                 ok = True
                 structures[:, :, j] = start_geom
             else:
-                print("rejected", 0.5 * np.sum(np.abs(old - new)))
-        nums = np.array(nums).T
+                rejected_geoms += 1
+            if show_progress:
+                progress = 100 * (j + 1) / num_geoms
+                text = f"{progress:2.1f}%"
+                print(" ", text, "of the geometries done.", rejected_geoms, "geometries rejected", end="\r", flush=True)
+                nums = np.array(nums).T
         try:
             numbers = np.vstack((numbers, nums))
         except UnboundLocalError:
@@ -213,7 +218,7 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
         pass
     counter = start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temp)
+    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temp, show_progress=True)
     F, M = lx.parser.pega_freq(freqlog)
     # convert numbers to dataframe
     numbers = pd.DataFrame(
@@ -243,9 +248,6 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
             bottom.replace("UUUUU", str(n + 1)),
             f"Geometries/Geometry-{n+1+counter}-.com",
         )
-        progress = 100 * (n + 1) / num_geoms
-        text = f"{progress:2.1f}%"
-        print(" ", text, "of the geometries done.", end="\r", flush=True)
     print("\n\nDone! Ready to run.")
 
 
@@ -502,7 +504,6 @@ def omega_tuning():
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
     print("Optimize at each step: yes")
-    print("Parallelization: yes")
     change = input("Are you satisfied with these parameters? y or n?\n")
     if change == "n":
         base = default(
@@ -524,7 +525,7 @@ def omega_tuning():
         )
     script = fetch_file("batch script", ["batch.sh"])
     gaussian = input("g16 or g09?\n")
-    parallel = input("Parallelization: y/n")
+    parallel = input("Parallelization: y/n\n")
     folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w") as f:
         f.write("10")

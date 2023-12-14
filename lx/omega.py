@@ -163,33 +163,32 @@ def write_tolog(omegas, Js, frase):
 
 
 def main():
-    GEOMLOG = sys.argv[1]
-    BASE = sys.argv[2]
-    NPROC = sys.argv[3]
-    MEM = sys.argv[4]
-    OMEGA1 = sys.argv[5]
-    PASSO = sys.argv[6]
-    RELAX = sys.argv[7]
-    SCRIPT = sys.argv[8]
-    GAUSSIAN = sys.argv[9]
-    PARALLEL = sys.argv[10]
-
+    geomlog = sys.argv[1]
+    base = sys.argv[2]
+    nproc = sys.argv[3]
+    mem = sys.argv[4]
+    omega1 = sys.argv[5]
+    passo = sys.argv[6]
+    relax = sys.argv[7]
+    script = sys.argv[8]
+    gaussian = sys.argv[9]
+    parallel = sys.argv[10]
     try:
-        int(NPROC)
-        PASSO = float(PASSO) * 10000
-        OMEGA1 = float(OMEGA1) * 10000
+        int(nproc)
+        passo = float(passo) * 10000
+        omega1 = float(omega1) * 10000
     except ValueError:
         lx.parser.fatal_error("nproc, omega and step must be numbers. Goodbye!")
-    if RELAX.lower() == "y":
+    if relax.lower() == "y":
         op = "opt"
-    elif RELAX.lower() == "n":
+    elif relax.lower() == "n":
         op = ""
     else:
         lx.parser.fatal_error("It must be either y or n. Goodbye!")
-    if PARALLEL.lower() == "y":    
+    if parallel.lower() == "y":
         numjobs = 10
     else:
-        numjobs = 1    
+        numjobs = 1
     omegas, Js = [], []
     oms, jotas = [], []
     try:
@@ -203,39 +202,39 @@ def main():
         menor = omegas[Js.index(min(Js))]
         G, atomos = lx.parser.pega_geom(f"Logs/OPT_{menor:05.0f}_.log")
     except:
-        G, atomos = lx.parser.pega_geom(GEOMLOG)
+        G, atomos = lx.parser.pega_geom(geomlog)
 
-    while PASSO > 25:
-        if OMEGA1 in omegas:
-            ind = omegas.index(OMEGA1)
+    while passo > 25:
+        if omega1 in omegas:
+            ind = omegas.index(omega1)
             J = Js[ind]
         else:
             J, G, atomos = rodar_omega(
-                atomos, G, BASE, NPROC, MEM, OMEGA1, op, SCRIPT, GAUSSIAN, numjobs
+                atomos, G, base, nproc, mem, omega1, op, script, gaussian, numjobs
             )
-            omegas.append(OMEGA1)
+            omegas.append(omega1)
             Js.append(J)
-        oms.append(OMEGA1)
+        oms.append(omega1)
         jotas.append(J)
         try:
             if jotas[-1] - jotas[-2] > 0:
-                PASSO = int(PASSO / 2)
+                passo = int(passo / 2)
                 sign = -1 * np.sign(int(oms[-1]) - int(oms[-2]))
             else:
                 sign = +1 * np.sign(int(oms[-1]) - int(oms[-2]))
-            OMEGA1 += sign * PASSO
+            omega1 += sign * passo
 
         except:
-            OMEGA1 += PASSO
+            omega1 += passo
         write_tolog(omegas, Js, "#Best value so far:")
 
     write_tolog(omegas, Js, "#Done! Optimized value:")
     menor = omegas[Js.index(min(Js))]
     log = f"Logs/OPT_{menor:05.0f}_.log"
     G, atomos = lx.parser.pega_geom(log)
-    BASE, _, NPROC, MEM, scrf, _ = lx.parser.busca_input(log)
+    base, _, nproc, mem, scrf, _ = lx.parser.busca_input(log)
     cm = lx.parser.get_cm(log)
-    header = f"%nproc={NPROC}\n%mem={MEM}\n# {BASE} {scrf}\n\nTITLE\n\n{cm}\n"
+    header = f"%nproc={nproc}\n%mem={mem}\n# {base} {scrf}\n\nTITLE\n\n{cm}\n"
     lx.tools.write_input(atomos, G, header, "", "tuned_w.com")
 
 
