@@ -25,28 +25,28 @@ def fatal_error(msg):
 
 ##GETS FREQUENCIES AND REDUCED MASSES##########################
 def pega_freq(freqlog):
-    F, M = [], []
-    with open(freqlog, "r") as f:
+    freqs, masses = [], []
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Frequencies -- " in line:
                 line = line.split()
                 for j in range(2, len(line)):
-                    F.append(float(line[j]))
+                    freqs.append(float(line[j]))
             elif "Red. masses --" in line:
                 line = line.split()
                 for j in range(3, len(line)):
-                    M.append(float(line[j]))
+                    masses.append(float(line[j]))
             elif "Thermochemistry" in line:
                 break
-    if len(F) == 0 or len(M) == 0:
+    if len(freqs) == 0 or len(masses) == 0:
         fatal_error(
             "No frequencies or reduced masses found. Check your frequency file. Goodbye."
         )
     # conversion in angular frequency
-    F = np.array(F) * (LIGHT_SPEED * 100 * 2 * np.pi)
+    freqs = np.array(freqs) * (LIGHT_SPEED * 100 * 2 * np.pi)
     # conversion from amu to kg
-    M = np.asarray(M) * AMU
-    return F, M
+    masses = np.asarray(masses) * AMU
+    return freqs, masses
 
 
 ###############################################################
@@ -56,7 +56,7 @@ def pega_geom(freqlog):
     if ".log" in freqlog:
         busca = " orientation:"
         fetch = False
-        with open(freqlog, "r") as f:
+        with open(freqlog, "r",encoding='utf-8') as f:
             for line in f:
                 if busca in line and "Dipole" not in line:
                     geom = np.zeros((1, 3))
@@ -77,14 +77,14 @@ def pega_geom(freqlog):
     else:
         geom = np.zeros((1, 3))
         atomos = []
-        with open(freqlog, "r") as f:
+        with open(freqlog, "r",encoding='utf-8') as f:
             for line in f:
                 line = line.split()
                 try:
                     vetor = np.array([float(line[1]), float(line[2]), float(line[3])])
                     atomos.append(line[0])
                     geom = np.vstack((geom, vetor))
-                except:
+                except (IndexError, ValueError):
                     pass
     geom = geom[1:, :]
     return geom, atomos
@@ -100,7 +100,7 @@ def pega_modosHP(G, freqlog):
     normal_modes = np.zeros((num_atoms, 3, len(F))) + np.nan
     mode = 0
     fetch = False
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Coord Atom Element:" in line:
                 fetch = True
@@ -127,7 +127,7 @@ def pega_modosLP(G, freqlog):
     normal_modes = np.zeros((num_atoms, 3, len(F))) + np.nan
     mode = 0
     fetch = False
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Atom  AN      X      Y      Z" in line:
                 fetch = True
@@ -151,7 +151,7 @@ def pega_modosLP(G, freqlog):
 ##DETECTS WHETHER HIGH PRECISION IS USED#######################
 def pega_modos(geom, freqlog):
     x = "LP"
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Coord Atom Element:" in line:
                 x = "HP"
@@ -168,7 +168,7 @@ def pega_modos(geom, freqlog):
 ##GETS INPUT PARAMS FROM LOG FILES#############################
 def get_input_params(freqlog):
     nproc, mem, header = "", "", ""
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         search = False
         for line in f:
             if "%nproc" in line.lower():
@@ -243,7 +243,7 @@ def double_check(freqlog):
     stationary = False
     if "opt" in header and "freq" in header and "iop(" in header:
         optfreqissue = True
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Stationary point found" in line:
                 stationary = True
@@ -284,7 +284,7 @@ def get_nr():
         for file in os.listdir("Geometries")
         if "Geometr" in file and ".com" in file
     ]
-    with open("Geometries/" + coms[0], "r") as f:
+    with open("Geometries/" + coms[0], "r",encoding='utf-8') as f:
         for line in f:
             if "SCRF" in line.upper():
                 buscar = True
@@ -296,7 +296,7 @@ def get_nr():
             if "Geometr" in file and ".log" in file
         ]
         for log in logs:
-            with open("Geometries/" + log, "r") as f:
+            with open("Geometries/" + log, "r",encoding='utf-8') as f:
                 for line in f:
                     if "Solvent" in line and "Eps" in line:
                         line = line.split()
@@ -311,7 +311,7 @@ def get_nr():
 
 ##FETCHES CHARGE AND MULTIPLICITY##############################
 def get_cm(freqlog):
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Charge" in line and "Multiplicity" in line:
                 line = line.split()

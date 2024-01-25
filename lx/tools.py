@@ -623,7 +623,7 @@ def conformational():
     subprocess.Popen(
         [
             "nohup",
-            "lx_conf_search.py",
+            "lx_conf_search",
             freqlog,
             base,
             nproc,

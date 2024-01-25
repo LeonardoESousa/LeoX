@@ -22,14 +22,14 @@ AMU = lx.parser.AMU  # kg
 def make_geoms(freqlog, num_geoms, temp, header, bottom):
     lista = []
     counter = lx.tools.start_counter()
-    _, atomos, A = lx.tools.sample_geometries(
+    _, atomos, structures = lx.tools.sample_geometries(
         freqlog, num_geoms, temp, 3000, warning=False
     )
-    for n in range(np.shape(A)[2]):
-        Gfinal = A[:, :, n]
+    for n in range(np.shape(structures)[2]):
+        final_geom = structures[:, :, n]
         lx.tools.write_input(
             atomos,
-            Gfinal,
+            final_geom,
             header.replace("UUUUU", str(n + 1)),
             bottom.replace("UUUUU", str(n + 1)),
             f"Geometry-{n+1+counter}-.com",
