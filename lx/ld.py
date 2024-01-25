@@ -75,12 +75,12 @@ def radius(xa, ya, dya, xd, yd, dyd, kappa):
     delta = np.sqrt((DeltaOver / IntOver) ** 2 + (delta_tau / tau) ** 2)
 
     # Calculates radius
-    radius = radius6 ** (1 / 6)
+    forster_radius = radius6 ** (1 / 6)
 
     # Error in radius
-    delta_radius = radius * delta / 6
+    delta_radius = forster_radius * delta / 6
 
-    return radius, delta_radius
+    return forster_radius, delta_radius
 
 
 ###############################################################
@@ -113,8 +113,8 @@ def r_avg(alpha, moment, rmin, dim):
 
 
 ##1D PROJECTIONS OF DIFFUSION LENGTH###########################
-def difflen(radius, alpha, moment, r, dim, phi):
-    ld = r * (radius**3) / ((alpha * moment + r) ** 3)
+def difflen(forster_radius, alpha, moment, r, dim, phi):
+    ld = r * (forster_radius**3) / ((alpha * moment + r) ** 3)
     ld = np.sqrt(phi) * ld / np.sqrt(dim)
     # Conversion to nm
     ld = ld / 10
@@ -150,7 +150,7 @@ def KTTA(RF, r, tau, error_radius, error_life):
 ##RETURNS ABS AND EMISSION TYPES###############################
 def emi_abs_types(Abs, Emi):
     abs_type = "S0"
-    with open(Emi, "r") as f:
+    with open(Emi, "r",encoding='utf-8') as f:
         line = f.readlines()[1].split("->")
         emi_init = line[0].split()[-1].strip()
         emi_final = line[1].split(":")[0].strip()
@@ -187,11 +187,11 @@ def get_lds_dists(alpha, moment, rmin, Phi, mean_radius, error_radius):
 def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     # Gets the Transition Dipole Moment in atomic units
     try:
-        with open(Emi, "r") as f:
+        with open(Emi, "r",encoding='utf-8') as f:
             for line in f:
                 moment = float(line.split("=")[1].split()[0])
                 break
-    except:
+    except (FileNotFoundError,IndexError, ValueError):
         moment = 0
 
     # Loads the data
@@ -211,10 +211,9 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
 
     try:
         setting_spectras = rates_types[(abs_type, emi_init[0], emi_final)]
-    except:
+    except KeyError:
         print(
-            "The configuration:\nabs %s\nemi %s -> %s\nis not defined! Generating standard calculations anyway ..."
-            % (abs_type, emi_init, emi_final)
+            f"The configuration:\nabs {abs_type}\nemi {emi_init} -> {emi_final}\nis not defined! Generating standard calculations anyway ..."
         )
         setting_spectras = "Only radius"
 
@@ -231,46 +230,32 @@ def run_ld(Abs, Emi, alpha, rmin, kappa, Phi):
     # Diffusion length and distance calculations for all conformations
     lds, dists = get_lds_dists(alpha, moment, rmin, Phi, mean_radius, error_radius)
 
-    with open("ld.lx", "w") as f:
-        f.write("Abs: %s, Emi: %s -> %s\n" % (abs_type, emi_init, emi_final))
+    with open("ld.lx", "w",encoding='utf-8') as f:
+        f.write(f"Abs: {abs_type}, Emi: {emi_init} -> {emi_final}\n")
         f.write(
-            "Forster Radius:      {:.1f} +/- {:.1f} AA \n".format(
-                mean_radius, error_radius
-            )
+            f"Forster Radius:      {mean_radius:.1f} +/- {error_radius:.1f} AA \n"
         )
         f.write(
-            "Radiative Lifetime:  {:.3e} +/- {:.3e} s\n".format(mean_life, error_life)
+            f"Radiative Lifetime:  {mean_life:.3e} +/- {error_life:.3e} s\n"
         )
-        f.write("Avg. Dipole Moment:  {:.1f} a.u. \n".format(moment))
+        f.write(f"Avg. Dipole Moment:  {moment:.1f} a.u. \n")
 
         if setting_spectras == "SSA":
             KSSA_cte, KSSA_error = KSSA(
                 mean_radius, rmin, mean_life, error_radius, error_life
             )
             f.write(
-                "Annihilation Coefficient Singlet-Singlet: {:5.2e} +/- {:5.2e} ".format(
-                    KSSA_cte, KSSA_error
-                )
-                + " cm^3 s^-1\n"
+                f"Annihilation Coefficient Singlet-Singlet: {KSSA_cte:5.2e} +/- {KSSA_error:5.2e} cm^3 s^-1\n"
             )
             f.write("Morphology   Avg_Hop_Distance(AA)  Diffusion_Length(nm)\n")
-            [
-                f.write(
-                    "{:}   {:<19.1f}  {:>.1f} +/- {:>.1f}\n".format(
-                        dists[i][2], dists[i][0], lds[i][0], lds[i][1]
-                    )
-                )
-                for i in range(len(dists))
-            ]
+            for i, dist in enumerate(dists):
+                f.write(f"{dist[2]}   {dist[0]:<19.1f}  {lds[i][0]:>.1f} +/- {lds[i][1]:>.1f}\n")
         if setting_spectras == "TTA":
             KTTA_cte, KTTA_error = KTTA(
                 mean_radius, rmin, mean_life, error_radius, error_life
             )
             f.write(
-                "Annihilation Coefficient Triplet-Triplet: {:5.2e} +/- {:5.2e} ".format(
-                    KTTA_cte, KTTA_error
-                )
-                + " cm^6 s^-1\n"
+                f"Annihilation Coefficient Triplet-Triplet: {KTTA_cte:5.2e} +/- {KTTA_error:5.2e} cm^6 s^-1\n"
             )
         if setting_spectras == "Only radius":
             pass

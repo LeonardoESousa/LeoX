@@ -44,7 +44,7 @@ def make_geoms(freqlog, num_geoms, temp, header, bottom):
 ##GETS ENERGY FROM THE ORIGINAL FREQ LOG FILE##################
 def get_energy_origin(freqlog):
     exc = 0
-    with open(freqlog, "r") as f:
+    with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "SCF Done:" in line:
                 line = line.split()
@@ -71,7 +71,7 @@ def get_energies(folder, original_molecule):
     for file in files:
         exc = 0
         if np.array_equal(original_molecule, lx.tools.fingerprint(file, folder)):
-            with open(folder + "/" + file, "r") as f:
+            with open(folder + "/" + file, "r",encoding='utf-8') as f:
                 num = float(file.split("-")[1])
                 for line in f:
                     if "SCF Done:" in line:
@@ -94,7 +94,7 @@ def get_energies(folder, original_molecule):
         try:
             shutil.move(file, "Geometries/" + file)
             shutil.move(file[:-3] + "com", "Geometries/" + file[:-3] + "com")
-        except:
+        except FileNotFoundError:
             pass
     return np.array(nums), np.array(scfs), np.array(rots)
 
@@ -186,7 +186,7 @@ def write_report(conformations, rounding, total_rounds, temp):
     probs = np.exp(-(deltae) / (0.026))
     probs = probs / sum(probs)
 
-    with open("conformation.lx", "w") as f:
+    with open("conformation.lx", "w",encoding='utf-8') as f:
         f.write(
             f"{'#Group':<6}  {'Energy(eV)':<10}  {'DeltaE(eV)':<10}  {'Prob@300K(%)':<12}  {'Rot1':<10}  {'Rot2':<10}  {'Rot3':<10}  {'Std1':<10}  {'Std2':<10}  {'Std3':<10}  {'Number':<6}  {'Last':<6}\n"
         )
@@ -213,7 +213,7 @@ def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
     the_watcher.hold_watch()
     #lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
     log = file[:-3] + "log"
-    with open(log, "r") as f:
+    with open(log, "r",encoding='utf-8') as f:
         for line in f:
             if "Normal termination" in line:
                 return log
@@ -294,7 +294,7 @@ def main():
         else:
             temp_0 += delta_t
 
-    with open("conformation.lx", "a") as f:
+    with open("conformation.lx", "a",encoding='utf-8') as f:
         f.write("\n#Search concluded!")
 
     try:

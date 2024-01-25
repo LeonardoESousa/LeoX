@@ -53,7 +53,7 @@ def gera_ioncom(atomos, G, base, nproc, mem, omega):
 ##GETS ENERGY FROM LOG#########################################
 def pega_energia(file):
     energias = []
-    with open(file, "r") as f:
+    with open(file, "r",encoding='utf-8') as f:
         for line in f:
             if "SCF Done:" in line:
                 line = line.split()
@@ -68,7 +68,7 @@ def pega_energia(file):
 def to_float(num):
     try:
         num = float(num)
-    except:
+    except ValueError:
         num = -np.inf
     return num
 
@@ -79,7 +79,7 @@ def to_float(num):
 ##GETS HOMO ENERGY FROM LOG####################################
 def pega_homo(file):
     HOMOS = []
-    with open(file, "r") as f:
+    with open(file, "r",encoding='utf-8') as f:
         for line in f:
             if "OPT" in file and "Optimized Parameters" in line:
                 HOMOS = []
@@ -88,7 +88,7 @@ def pega_homo(file):
                 homos = line[4:]
                 HOMOS.extend(homos)
     if len(HOMOS) == 0:
-        with open(file, "r") as f:
+        with open(file, "r",encoding='utf-8') as f:
             for line in f:
                 if "occ. eigenvalues" in line:
                     line = line.split()
@@ -151,7 +151,7 @@ def rodar_omega(atomos, geom, base, nproc, mem, omega, op, batch_file, gaussian,
 
 ##WRITES LOG WITH RESULTS######################################
 def write_tolog(omegas, Js, frase):
-    with open("omega.lx", "w") as f:
+    with open("omega.lx", "w",encoding='utf-8') as f:
         f.write("#w(10^4 bohr^-1)    J(eV)\n")
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         for i in range(len(list1)):
@@ -192,7 +192,7 @@ def main():
     omegas, Js = [], []
     oms, jotas = [], []
     try:
-        with open("omega.lx", "r") as f:
+        with open("omega.lx", "r",encoding='utf-8') as f:
             for line in f:
                 line = line.split()
                 if len(line) == 2 and "#" not in line:
@@ -201,7 +201,7 @@ def main():
                     Js.append(float(line[1]))
         menor = omegas[Js.index(min(Js))]
         G, atomos = lx.parser.pega_geom(f"Logs/OPT_{menor:05.0f}_.log")
-    except:
+    except FileNotFoundError:
         G, atomos = lx.parser.pega_geom(geomlog)
 
     while passo > 25:
@@ -224,7 +224,7 @@ def main():
                 sign = +1 * np.sign(int(oms[-1]) - int(oms[-2]))
             omega1 += sign * passo
 
-        except:
+        except IndexError:
             omega1 += passo
         write_tolog(omegas, Js, "#Best value so far:")
 

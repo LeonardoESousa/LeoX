@@ -34,8 +34,8 @@ def interface():
     op = input()
     if op == "1":
         freqlog = lx.tools.fetch_file("frequency", [".log"])
-        F, _ = lx.parser.pega_freq(freqlog)
-        if F[0] < 0:
+        freqs, _ = lx.parser.pega_freq(freqlog)
+        if freqs[0] < 0:
             lx.parser.fatal_error("Imaginary frequency! Goodbye!")
         cm = lx.parser.get_cm(freqlog)
         base, temtd, nproc, mem, scrf, spec = lx.parser.busca_input(freqlog)
@@ -79,7 +79,7 @@ def interface():
         num_ex = input("How many excited states?\n")
         try:
             num_ex = int(num_ex)
-        except:
+        except ValueError:
             lx.parser.fatal_error("This must be a number! Goodbye!")
         num_geoms = int(input("How many geometries to be sampled?\n"))
         pcm = input("Include state specific solvent approach? y or n?\n")
@@ -104,10 +104,10 @@ def interface():
             bottom = epss + "\n\n"
         else:
             lx.parser.fatal_error("It should be y or n. Goodbye!")
-        T = float(input("Temperature in Kelvin?\n"))
-        if T <= 0:
+        temperature = float(input("Temperature in Kelvin?\n"))
+        if temperature <= 0:
             lx.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
-        lx.tools.make_ensemble(freqlog, num_geoms, T, header, bottom)
+        lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, bottom)
     elif op == "2":
         lx.tools.batch()
     elif op == "3":
@@ -123,12 +123,12 @@ def interface():
             opc = input("What is the standard deviation of the gaussians?\n")
             try:
                 opc = float(opc)
-            except:
+            except ValueError:
                 lx.parser.fatal_error("It must be a number. Goodbye!")
             nr = input("What is the refractive index?\n")
             try:
                 nr = float(nr)
-            except:
+            except ValueError:
                 lx.parser.fatal_error("It must be a number. Goodbye!")
             tipo = input(
                 "What kind of spectrum? Type abs (absorption) or emi (emission)\n"
@@ -140,7 +140,7 @@ def interface():
             estados = input("How many excited states?\n")
             try:
                 estados = int(estados)
-            except:
+            except ValueError:
                 lx.parser.fatal_error("It must be an integer! Goodbye!")
         else:
             estados = 1
@@ -159,7 +159,7 @@ def interface():
                 classify_only()
             except:
                 lx.parser.fatal_error(
-                    "Something went wrong. Your folder may not contain Geomtetry log files. Goodbye!"
+                    "Something went wrong. Your folder may not contain Geometry log files. Goodbye!"
                 )
         else:
             lx.tools.conformational()
@@ -175,8 +175,8 @@ def interface():
         base, _, nproc, mem, scrf, _ = lx.parser.busca_input(freqlog)
         cm = lx.parser.get_cm(freqlog)
         header = f"%nproc={nproc}\n%mem={mem}\n# {base} {scrf}\n\nTITLE\n\n{cm}\n"
-        G, atomos = lx.parser.pega_geom(freqlog)
-        lx.tools.write_input(atomos, G, header, "", "geom.lx")
+        geom, atomos = lx.parser.pega_geom(freqlog)
+        lx.tools.write_input(atomos, geom, header, "", "geom.lx")
         print("Geometry saved in the geom.lx file.")
     elif op == "10":
         lx.tools.abort_batch()
@@ -187,12 +187,12 @@ def interface():
 def main():
     try:
         freqlog = sys.argv[1]
-        G, atomos = lx.parser.pega_geom(freqlog)
+        geom, atomos = lx.parser.pega_geom(freqlog)
         print(len(atomos))
         print("\n")
-        for i in range(len(atomos)):
-            print(f"{atomos[i]:2s}  {G[i,0]:.7f}  {G[i,1]:.7f}  {G[i,2]:.7f}")
-    except:
+        for i, atomo in enumerate(atomos):
+            print(f"{atomo:2s}  {geom[i,0]:.7f}  {geom[i,1]:.7f}  {geom[i,2]:.7f}")
+    except IndexError:
         interface()
 
 
