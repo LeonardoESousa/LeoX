@@ -7,6 +7,7 @@
 import io
 import os
 import sys
+import subprocess
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
@@ -20,7 +21,7 @@ AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
 
 # What packages are required for this module to be executed?
-REQUIRED = ['numpy', 'scipy', 'pandas']
+REQUIRED = ['numpy', 'scipy', 'pandas','wheel']
 
 # What packages are optional?
 EXTRAS = {
@@ -48,7 +49,6 @@ project_slug = 'lx'
 with open(os.path.join(here, project_slug, '__version__.py'),encoding='utf-8') as f:
     exec(f.read(), about)
 
-
 class UploadCommand(Command):
     """Support setup.py upload."""
 
@@ -58,7 +58,7 @@ class UploadCommand(Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
+        print(f'\033[1m{s}\033[0m')
 
     def initialize_options(self):
         pass
@@ -74,14 +74,10 @@ class UploadCommand(Command):
             pass
 
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        subprocess.run([sys.executable, 'setup.py', 'sdist', 'bdist_wheel', '--universal'], check=True)
 
         self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload dist/*')
-
-        self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
-        os.system('git push --tags')
+        subprocess.run(['twine', 'upload', 'dist/*'], check=True)
 
         sys.exit()
 
