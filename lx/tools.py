@@ -553,14 +553,12 @@ def omega_tuning():
     script = fetch_file("batch script", ["batch.sh"])
     gaussian = input("g16 or g09?\n")
     parallel = input("Parallelization: y/n\n")
-    folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
         [
             "nohup",
-            "python3",
-            folder + "/omega.py",
+            "lx_omega",
             geomlog,
             base,
             nproc,
@@ -574,7 +572,6 @@ def omega_tuning():
             "&",
         ]
     )
-
 
 ###############################################################
 
@@ -623,12 +620,10 @@ def conformational():
         lx.parser.fatal_error("These must be integers. Goodbye!")
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
-    folder = os.path.dirname(os.path.realpath(__file__))
     subprocess.Popen(
         [
             "nohup",
-            "python3",
-            folder + "/conf_search.py",
+            "lx_conf_search.py",
             freqlog,
             base,
             nproc,
