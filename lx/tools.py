@@ -127,12 +127,12 @@ def fingerprint(file, folder):
 
 
 ##SAVES OPT GEOMETRY###########################################
-def salva_geom(G, atomos):
+def salva_geom(geom, atomos):
     atomos = np.array([atomos]).astype(float)
     atomos = atomos.T
-    G = np.hstack((atomos, G))
+    geom = np.hstack((atomos, geom))
     np.savetxt(
-        "opt_geom.lx", G, delimiter="\t", fmt=["%1.1u", "%+1.5f", "%+1.5f", "%+1.5f"]
+        "opt_geom.lx", geom, delimiter="\t", fmt=["%1.1u", "%+1.5f", "%+1.5f", "%+1.5f"]
     )
     print("The optimized geometry that is used is saved in the opt_geom.lx file!")
 
@@ -172,7 +172,7 @@ def distort(freqlog):
     geom, atomos = lx.parser.pega_geom(freqlog)
     freqs, masses = lx.parser.pega_freq(freqlog)
     normal_coords = lx.parser.pega_modos(geom, freqlog)
-    Gfinal = geom.copy()
+    final_geom = geom.copy()
     # check for imaginary frequencies
     if np.all(freqs > 0):
         lx.parser.fatal_error("No imaginary frequencies found. Exiting...")
@@ -183,12 +183,12 @@ def distort(freqlog):
                 HBAR_J / (2 * masses[i] * f * np.tanh(HBAR_EV * f / (2 * BOLTZ_EV * temp)))
             )
             q = np.array(q)
-            Gfinal += q * normal_coords[:, :, i]
+            final_geom += q * normal_coords[:, :, i]
     base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
     cm = lx.parser.get_cm(freqlog)
     header = f"%nproc={nproc}\n%mem={mem}\n# {base} opt freq=noraman\n\nDISTORTED GEOM\n\n{cm}\n"
     bottom = "\n"
-    write_input(atomos, Gfinal, header, bottom, "distorted.com")
+    write_input(atomos, final_geom, header, bottom, "distorted.com")
     print("New input file written to distorted.com")
 
 
@@ -247,8 +247,8 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
         pass
     counter = start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temp, show_progress=True)
-    F, M = lx.parser.pega_freq(freqlog)
+    numbers, atomos, structures = sample_geometries(freqlog, num_geoms, temp, show_progress=True)
+    freqs, masses = lx.parser.pega_freq(freqlog)
     # convert numbers to dataframe
     numbers = pd.DataFrame(
         numbers, columns=[f"mode_{i+1}" for i in range(np.shape(numbers)[1])]
@@ -264,15 +264,15 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
         numbers = pd.concat([data, numbers], axis=0, ignore_index=True)
     # concatenate frequencies and masses to numbers
     numbers = pd.concat(
-        [pd.DataFrame(F, columns=["freq"]), pd.DataFrame(M, columns=["mass"]), numbers],
+        [pd.DataFrame(freqs, columns=["freq"]), pd.DataFrame(masses, columns=["mass"]), numbers],
         axis=1,
     )
     numbers.to_csv(f"Magnitudes_{temp:.0f}K_.lx", index=False)
-    for n in range(np.shape(A)[2]):
-        Gfinal = A[:, :, n]
+    for n in range(np.shape(structures)[2]):
+        final_geom = structures[:, :, n]
         write_input(
             atomos,
-            Gfinal,
+            final_geom,
             header.replace("UUUUU", str(n + 1)),
             bottom.replace("UUUUU", str(n + 1)),
             f"Geometries/Geometry-{n+1+counter}-.com",
@@ -291,16 +291,16 @@ def gather_data(opc, tipo):
         if ".log" in file and "Geometr" in file
     ]
     files = [
-        i for i in files if "Normal termination" in open("Geometries/" + i, "r").read()
+        i for i in files if "Normal termination" in open("Geometries/" + i, "r",encoding="utf-8").read()
     ]
     files = sorted(files, key=lambda file: float(file.split("-")[1]))
-    with open("Samples.lx", "w") as f:
+    with open("Samples.lx", "w",encoding="utf-8") as f:
         for file in files:
             num = file.split("-")[1]
             broadening = opc
             numeros, energies, fs, scfs = [], [], [], []
             corrected, total_corrected = -1, -1
-            with open("Geometries/" + file, "r") as g:
+            with open("Geometries/" + file, "r",encoding="utf-8") as g:
                 for line in g:
                     if "Excited State" in line:
                         line = line.split()
@@ -336,9 +336,9 @@ def gather_data(opc, tipo):
                             f"Excited State {numeros[0]}\t{energies[0]}\t{fs[0]}\t{broadening}\n"
                         )
                     else:
-                        for i in range(len(energies)):
+                        for i, energy in enumerate(energies):
                             f.write(
-                                f"Excited State {numeros[i]}\t{energies[i]}\t{fs[i]}\t{broadening}\n"
+                                f"Excited State {numeros[i]}\t{energy}\t{fs[i]}\t{broadening}\n"
                             )
                     f.write("\n")
 
@@ -356,10 +356,10 @@ def gauss(x, v, s):
 
 
 ##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
-def calc_tdm(O, V):
+def calc_tdm(osc_strength, vertical_energy):
     # Energy terms converted to J
-    term = E_CHARGE * (HBAR_J**2) / V
-    dipoles = np.sqrt(3 * term * O / (2 * MASS_E))
+    term = E_CHARGE * (HBAR_J**2) / vertical_energy
+    dipoles = np.sqrt(3 * term * osc_strength / (2 * MASS_E))
     # Conversion in au
     dipoles *= 1.179474389e29
     return np.mean(dipoles)
@@ -389,8 +389,8 @@ def naming(arquivo):
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_emi_rate(xd, yd, dyd):
     # Integrates the emission spectrum
-    IntEmi = np.trapz(yd, xd)
-    taxa = (1 / HBAR_EV) * IntEmi
+    integrated_emission = np.trapz(yd, xd)
+    taxa = (1 / HBAR_EV) * integrated_emission
     error = (1 / HBAR_EV) * np.sqrt(np.trapz((dyd**2), xd))
     return taxa, error
 
@@ -412,38 +412,38 @@ def spectra(tipo, num_ex, nr):
             * (E_CHARGE**2)
             / (2 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3) * EPSILON_0)
         )
-    V, O, S = [], [], []
-    N = 0
-    with open("Samples.lx", "r") as f:
+    vertical_energy, osc_strength, sigma = [], [], []
+    number = 0
+    with open("Samples.lx", "r",encoding="utf-8") as f:
         for line in f:
             if "Geometry" in line:
-                N += 1
+                number += 1
             elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex:
                 line = line.split()
                 if float(line[3]) <= 0:
                     print("Ignoring geom with negative vertical transition!")
-                    N -= 1
+                    number -= 1
                 else:
-                    V.append(float(line[3]))
-                    O.append(float(line[4]))
-                    S.append(float(line[5]))
+                    vertical_energy.append(float(line[3]))
+                    osc_strength.append(float(line[4]))
+                    sigma.append(float(line[5]))
     coms = start_counter()
-    if len(V) == 0 or len(O) == 0:
+    if len(vertical_energy) == 0 or len(osc_strength) == 0:
         lx.parser.fatal_error("You need to run steps 1 and 2 first! Goodbye!")
-    elif len(V) != coms * max(num_ex):
+    elif len(vertical_energy) != coms * max(num_ex):
         print(
             "Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway..."
         )
-    V = np.array(V)
-    O = np.array(O)
-    S = np.array(S)
+    vertical_energy = np.array(vertical_energy)
+    osc_strength = np.array(osc_strength)
+    sigma = np.array(sigma)
     if tipo == "abs":
-        espectro = constante * O
+        espectro = constante * osc_strength
     else:
-        espectro = constante * (V**2) * O
-        tdm = calc_tdm(O, V)
-    left = max(min(V) - 3 * max(S), 0.001)
-    right = max(V) + 3 * max(S)
+        espectro = constante * (vertical_energy**2) * osc_strength
+        tdm = calc_tdm(osc_strength, vertical_energy)
+    left = max(min(vertical_energy) - 3 * max(sigma), 0.001)
+    right = max(vertical_energy) + 3 * max(sigma)
     x = np.linspace(left, right, int((right - left) / 0.01))
     if tipo == "abs":
         arquivo = "cross_section.lx"
@@ -456,22 +456,20 @@ def spectra(tipo, num_ex, nr):
             "#Energy(ev)", "diff_rate", "error", tdm
         )
     arquivo = naming(arquivo)
-    y = espectro[:, np.newaxis] * gauss(x, V[:, np.newaxis], S[:, np.newaxis])
-    mean_y = np.sum(y, axis=0) / N
+    y = espectro[:, np.newaxis] * gauss(x, vertical_energy[:, np.newaxis], sigma[:, np.newaxis])
+    mean_y = np.sum(y, axis=0) / number
     # Error estimate
-    sigma = np.sqrt(np.sum((y - mean_y) ** 2, axis=0) / (N * (N - 1)))
+    sigma = np.sqrt(np.sum((y - mean_y) ** 2, axis=0) / (number * (number - 1)))
 
     if tipo == "emi":
         # Emission rate calculations
         mean_rate, error_rate = calc_emi_rate(x, mean_y, sigma)
-        segunda = "# Total Rate S1 -> S0: {:5.2e} +/- {:5.2e} s^-1\n".format(
-            mean_rate, error_rate
-        )
+        segunda = f"# Total Rate S1 -> S0: {mean_rate:5.2e} +/- {error_rate:5.2e} s^-1\n"
     else:
         segunda = "# Absorption from State: S0\n"
 
-    print(N, "geometries considered.")
-    with open(arquivo, "w") as f:
+    print(number, "geometries considered.")
+    with open(arquivo, "w",encoding="utf-8") as f:
         f.write(primeira)
         f.write(segunda)
         for i in range(0, len(x)):
@@ -556,7 +554,7 @@ def omega_tuning():
     gaussian = input("g16 or g09?\n")
     parallel = input("Parallelization: y/n\n")
     folder = os.path.dirname(os.path.realpath(__file__))
-    with open("limit.lx", "w") as f:
+    with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
         [
@@ -623,7 +621,7 @@ def conformational():
         int(numjobs)
     except ValueError:
         lx.parser.fatal_error("These must be integers. Goodbye!")
-    with open("limit.lx", "w") as f:
+    with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     folder = os.path.dirname(os.path.realpath(__file__))
     subprocess.Popen(
@@ -657,7 +655,7 @@ def detect_sigma():
         file = files[0]
         temp = float(file.split("_")[1].strip("K"))
         sigma = np.round(BOLTZ_EV * temp, 3)
-    except:
+    except (FileNotFoundError, IndexError):
         sigma = 0.000
     return sigma
 
@@ -672,7 +670,7 @@ def get_spec():
         for file in os.listdir("Geometries")
         if "Geometr" in file and ".com" in file
     ]
-    with open("Geometries/" + coms[0], "r") as f:
+    with open("Geometries/" + coms[0], "r",encoding="utf-8") as f:
         for line in f:
             if "ABSSPCT" in line:
                 tipo = "absorption"
@@ -705,7 +703,7 @@ def set_eps(scrf):
         try:
             float(eps1)
             float(eps2)
-        except:
+        except ValueError:
             lx.parser.fatal_error("The constants must be numbers. Goodbye!")
         epss = "Eps=" + eps1 + "\nEpsInf=" + eps2 + "\n\n"
     else:
@@ -725,7 +723,7 @@ def abort_batch():
         try:
             os.remove("limit.lx")
             print("Done!")
-        except:
+        except FileNotFoundError:
             print("Could not find the files. Maybe you are in the wrong folder.")
     else:
         print("OK, nevermind")
@@ -750,7 +748,7 @@ def delchk(input_file):
 ##CHECKS WHETHER THE JOB IS TWO STEP###########################
 def set_factor(file):
     factor = 1
-    with open(file, "r") as f:
+    with open(file, "r",encoding="utf-8") as f:
         for line in f:
             if "Link1" in line:
                 factor = 2
@@ -761,7 +759,7 @@ def set_factor(file):
 class Watcher:
     def __init__(self, folder,files=None,counter=1):
         self.folder = folder
-        if files is None: 
+        if files is None:
             self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
             self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
         else:
@@ -867,41 +865,41 @@ def andamento():
 
 ##GETS SPECTRA#################################################
 def search_spectra():
-    Abs, Emi = "None", "None"
+    absorption, emission = "None", "None"
     candidates = [i for i in os.listdir(".") if ".lx" in i]
     for candidate in candidates:
-        with open(candidate, "r") as f:
+        with open(candidate, "r",encoding="utf-8") as f:
             for line in f:
                 if "cross_section" in line:
-                    Abs = candidate
+                    absorption = candidate
                 elif "diff_rate" in line:
-                    Emi = candidate
+                    emission = candidate
                 break
-    return Abs, Emi
+    return absorption, emission
 
 
 ###############################################################
 
 ##RUNS EXCITON ANALYSIS########################################
 def ld():
-    Abs, Emi = search_spectra()
-    print(f"Absorption file: {Abs}")
-    print(f"Emission file: {Emi}")
+    absorption, emission = search_spectra()
+    print(f"Absorption file: {absorption}")
+    print(f"Emission file: {emission}")
     check = input("Are these correct? y or n?\n")
     if check == "n":
-        Abs = input("Type name of the absorption spectrum file\n")
-        Emi = input("Type name of the emission spectrum file\n")
+        absorption = input("Type name of the absorption spectrum file\n")
+        emission = input("Type name of the emission spectrum file\n")
 
     kappa = input("Orientation Factor (k^2):\n")
     rmin = input("Average intermolecular distance in Å:\n")
-    Phi = input("Fluorescence quantum yield (from 0 to 1):\n")
+    quantum_yield = input("Fluorescence quantum yield (from 0 to 1):\n")
     try:
         rmin = float(rmin)
         kappa = np.sqrt(float(kappa))
-        Phi = float(Phi)
-    except:
+        quantum_yield = float(quantum_yield)
+    except ValueError:
         lx.parser.fatal_error("These features must be numbers. Goodbye!")
-    if Phi > 1 or Phi < 0:
+    if quantum_yield > 1 or quantum_yield < 0:
         lx.parser.fatal_error("Quantum yield must be between 0 and 1. Goodbye!")
 
     correct = input("Include correction for short distances? y or n?\n")
@@ -914,10 +912,11 @@ def ld():
 
     print("Computing...")
     try:
-        run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
+        run_ld(absorption, emission, alpha, rmin, kappa, quantum_yield)
         print("Results can be found in the ld.lx file")
-    except:
+    except Exception as e:
         print("Something went wrong. Check if the name of the files are correct.")
+        print(e)
 
 
 ###############################################################
