@@ -105,6 +105,42 @@ def adjacency(geom, atoms):
         'Br': 1.20,
         '36': 1.16,
         'Kr': 1.16,
+        '37': 2.2,
+        'Rb': 2.2,
+        '38': 1.95,
+        'Sr': 1.95,
+        '39': 1.9,
+        'Y': 1.9,
+        '40': 1.75,
+        'Zr': 1.75,
+        '41': 1.64,
+        'Nb': 1.64,
+        '42': 1.54,
+        'Mo': 1.54,
+        '43': 1.47,
+        'Tc': 1.47,
+        '44': 1.46,
+        'Ru': 1.46,
+        '45': 1.42,
+        'Rh': 1.42,
+        '46': 1.39,
+        'Pd': 1.39,
+        '47': 1.45,
+        'Ag': 1.45,
+        '48': 1.44,
+        'Cd': 1.44,
+        '49': 1.42,
+        'In': 1.42,
+        '50': 1.39,
+        'Sn': 1.39,
+        '51': 1.39,
+        'Sb': 1.39,
+        '52': 1.38,
+        'Te': 1.38,
+        '53': 1.39,
+        'I': 1.39,
+        '54': 1.4,
+        'Xe': 1.4,
     }
     dist_matrix = distance_matrix(geom)
     adj_matrix = np.zeros(np.shape(dist_matrix))
@@ -217,7 +253,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
             start_geom = geom.copy()
             qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
             qs = np.array(qs)
-            start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
+            start_geom += np.sum(qs.reshape((1, 1, -1)) * normal_coord, axis=2)
             new = adjacency(start_geom, atomos)
             if 0.5 * np.sum(np.abs(old - new)) < 2 or not warning:
                 ok = True

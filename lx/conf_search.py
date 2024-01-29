@@ -310,7 +310,7 @@ def main():
             freqlog = f"Geometries/Geometry-{numero:.0f}-.log"
         _, _, nproc, mem, scrf, _ = lx.parser.busca_input(freqlog)
         cm = lx.parser.get_cm(freqlog)
-        header = f"%nproc={nproc}\n%mem={mem}\n%chk=Group_{i+1}_.chk\n# pm6 {scrf} opt\n\nTITLE\n\n{cm}\n"
+        header = f"%nproc={nproc}\n%mem={mem}\n%chk=Group_{i+1}_.chk\n# pm6 {scrf} opt nosymm\n\nTITLE\n\n{cm}\n"
         geom, atomos = lx.parser.pega_geom(freqlog)
         lx.tools.write_input(
             atomos, geom, header, "", f"Conformers/Geometry-{i+1}-.com"
