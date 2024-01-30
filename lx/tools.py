@@ -588,7 +588,7 @@ def omega_tuning():
         )
     script = fetch_file("batch script", ["batch.sh"])
     gaussian = input("g16 or g09?\n")
-    parallel = input("Parallelization: y/n\n")
+    parallel = input("Minimize submission of jobs: y/n\n")
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
