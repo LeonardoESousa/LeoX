@@ -3,7 +3,7 @@
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/LeoX?style=plastic)]()
 [![down](https://img.shields.io/pypi/dm/LeoX)]()
-[![maint](https://img.shields.io/maintenance/yes/2023)]()
+[![maint](https://img.shields.io/maintenance/yes/2024)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/LeoX?style=plastic)]()
 
 
