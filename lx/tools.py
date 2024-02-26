@@ -242,6 +242,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         freqs[freqs < 0] *= -1
         mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
         freqs = freqs[mask]
+        masses = masses[mask]
         normal_coord = normal_coord[:,:, mask]
     structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
     scales = 1e10 * np.sqrt(
@@ -255,7 +256,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
             qs = np.array(qs)
             start_geom += np.sum(qs.reshape((1, 1, -1)) * normal_coord, axis=2)
             new = adjacency(start_geom, atomos)
-            if 0.5 * np.sum(np.abs(old - new)) < 2 or not warning:
+            if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
                 ok = True
                 structures[:, :, j] = start_geom
             else:
