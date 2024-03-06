@@ -3,17 +3,19 @@ import sys
 import lx.tools
 import lx.parser
 from lx.conf_search import classify_only
-
+from lx import __version__ as lx_version
 
 def interface():
-    print("#                       #     #")
-    print("#        ######   ####   #   # ")
-    print("#        #       #    #   # #  ")
-    print("#        #####   #    #    #   ")
-    print("#        #       #    #   # #  ")
-    print("#        #       #    #  #   # ")
-    print("#######  ######   ####  #     #")
-    print("--SPECTRA - EXCITON - TUNING--\n")
+    print(" ▄█          ▄████████  ▄██████▄  ▀████    ▐████▀")
+    print("███         ███    ███ ███    ███   ███▌   ████▀ ")
+    print("███         ███    █▀  ███    ███    ███  ▐███   ")
+    print("███        ▄███▄▄▄     ███    ███    ▀███▄███▀   ")
+    print("███       ▀▀███▀▀▀     ███    ███    ████▀██▄    ")
+    print("███         ███    █▄  ███    ███   ▐███  ▀███   ")
+    print("███▌    ▄   ███    ███ ███    ███  ▄███     ███▄ ")
+    print("█████▄▄██   ██████████  ▀██████▀  ████       ███▄")
+    print("▀                                                ")
+    print(f"Version: {lx_version.__version__}\n")
     print("Choose your option:\n")
     print("SPECTRUM SIMULATIONS:")
     print("\t1 - Generate the inputs for the spectrum calculation")
@@ -189,7 +191,7 @@ def main():
         freqlog = sys.argv[1]
         geom, atomos = lx.parser.pega_geom(freqlog)
         print(len(atomos))
-        print("\n")
+        print("")
         for i, atomo in enumerate(atomos):
             print(f"{atomo:2s}  {geom[i,0]:.7f}  {geom[i,1]:.7f}  {geom[i,2]:.7f}")
     except IndexError:
