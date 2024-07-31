@@ -138,9 +138,15 @@ class Conformation:
 
 
 def internal_comparison(conformations):
-    remove = []
-    for i in range(len(conformations) - 1):
-        for j in range(i + 1, len(conformations)):
+    num_conformations = len(conformations)
+    remove = set()  # Use a set to avoid duplicates
+
+    for i in range(num_conformations - 1):
+        if i in remove:
+            continue  # Skip already marked for removal
+        for j in range(i + 1, num_conformations):
+            if j in remove:
+                continue  # Skip already marked for removal
             distance = measure(
                 conformations[i].get_avg(),
                 conformations[j].get_avg(),
@@ -150,27 +156,41 @@ def internal_comparison(conformations):
                 conformations[i].num += conformations[j].num
                 conformations[i].energy += conformations[j].energy
                 conformations[i].merge_rot(conformations[j].rot)
-                remove.append(j)
-                # break
-    # remove elements from list whose index is in remove
-    conformations = [i for j, i in enumerate(conformations) if j not in remove]
+                remove.add(j)
+                
+    # Remove elements from list whose index is in remove
+    conformations = [c for idx, c in enumerate(conformations) if idx not in remove]
     return conformations
 
 
 def classify(conformations, folder):
     nums, scfs, rots = get_energies(folder, conformations[0].identity)
-    for i in range(rots.shape[0]):
+    new_conformations = []
+
+    total_geometries = rots.shape[0]
+    matched_count = 0
+    new_conformation_count = 0
+
+    for i in range(total_geometries):
+        matched = False
         for conformation in conformations:
             distance = measure(rots[i, :], conformation.get_avg(), conformation.std)
             if distance == 0:
                 conformation.add_rot(rots[i, :], nums[i], scfs[i])
+                matched = True
+                matched_count += 1
                 break
-            conformations.append(
-                Conformation(rots[i, :], scfs[i], conformations[0].identity, nums[i])
-            )
+
+        if not matched:
+            new_conformations.append(Conformation(rots[i, :], scfs[i], conformations[0].identity, nums[i]))
+            new_conformation_count += 1
+
+    conformations.extend(new_conformations)
+
     if len(conformations) > 1:
         conformations = internal_comparison(conformations)
     return conformations
+
 
 
 def write_report(conformations, rounding, total_rounds, temp):
