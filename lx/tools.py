@@ -308,53 +308,6 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
 
-###############################################################
-def AAsample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
-    geom, atomos = lx.parser.pega_geom(freqlog)
-    old = adjacency(geom, atomos)
-    freqs, masses = lx.parser.pega_freq(freqlog)
-    normal_coord = lx.parser.pega_modos(geom, freqlog)
-    # check for negative frequencies
-    rejected_geoms = 0
-    if warning:
-        lx.parser.double_check(freqlog)
-    else:
-        freqs[freqs < 0] *= -1
-        mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
-        freqs = freqs[mask]
-        masses = masses[mask]
-        normal_coord = normal_coord[:,:, mask]
-    structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
-    scales = 1e10 * np.sqrt(
-        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
-    )
-    for j in range(num_geoms):
-        ok = False
-        while not ok:
-            start_geom = geom.copy()
-            qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
-            qs = np.array(qs)
-            start_geom += np.sum(qs.reshape((1, 1, -1)) * normal_coord, axis=2)
-            new = adjacency(start_geom, atomos)
-            if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
-                ok = True
-                structures[:, :, j] = start_geom
-            else:
-                rejected_geoms += 1
-            if show_progress:
-                progress = 100 * (j + 1) / num_geoms
-                text = f"{progress:2.1f}%"
-                print(" ", text, "of the geometries done.", rejected_geoms, "geometries rejected", end="\r", flush=True)
-        try:
-            numbers = np.vstack((numbers, qs.T))
-        except UnboundLocalError:
-            numbers = qs.T
-    numbers = np.round(numbers, 4)
-    return numbers, atomos, structures
-
-
-###############################################################
-
 
 ##MAKES ENSEMBLE###############################################
 def make_ensemble(freqlog, num_geoms, temp, header, bottom):
