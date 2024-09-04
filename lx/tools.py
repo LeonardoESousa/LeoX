@@ -6,6 +6,7 @@ import subprocess
 from scipy.stats import norm
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 from lx.ld import run_ld
 import lx.parser
 
@@ -228,8 +229,87 @@ def distort(freqlog):
     print("New input file written to distorted.com")
 
 
-###############################################################
+def sample_single_geometry(args):
+    geom, atomos, old, scales, normal_coord, warning = args
+    rejected_geoms = 0
+    ok = False
+    
+    while not ok:
+        try:
+            start_geom = geom.copy()
+            qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
+            qs = np.array(qs)
+            start_geom += np.sum(qs.reshape((1, 1, -1)) * normal_coord, axis=2)
+            new = adjacency(start_geom, atomos)
+            difference = 0.5 * np.sum(np.abs(old - new))
+
+    
+            if difference < 1 or not warning:
+                ok = True
+                return (start_geom, qs.T, rejected_geoms)
+            else:
+                rejected_geoms += 1
+    
+        except Exception as e:
+            return None
+
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
+    geom, atomos = lx.parser.pega_geom(freqlog)
+    old = adjacency(geom, atomos)
+    freqs, masses = lx.parser.pega_freq(freqlog)
+    normal_coord = lx.parser.pega_modos(geom, freqlog)
+
+    if warning:
+        lx.parser.double_check(freqlog)
+    else:
+        freqs[freqs < 0] *= -1
+        mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
+        freqs = freqs[mask]
+        masses = masses[mask]
+        normal_coord = normal_coord[:, :, mask]
+
+    scales = 1e10 * np.sqrt(
+        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
+    )
+
+    args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
+
+    # Shared value for tracking progress
+    progress = mp.Value('i', 0)
+    rejected = mp.Value('i', 0)
+    def update_progress(val):
+        with progress.get_lock():
+            progress.value += 1
+        with rejected.get_lock():
+            rejected.value += val[-1]
+
+    # Use multiprocessing to parallelize the geometry generation
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = []
+        for arg in args:
+            result = pool.apply_async(sample_single_geometry, (arg,), callback=update_progress)
+            results.append(result)
+
+        structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
+        numbers = np.zeros((num_geoms, len(scales)))
+        
+        for j, result in enumerate(results):
+            try:
+                output = result.get(timeout=30)  # Timeout of 30 seconds for each task
+                if output is None:
+                    continue
+                structures[:, :, j] = output[0]
+                numbers[j] = output[1].flatten()
+            except mp.TimeoutError:
+                print(f"Task {j} timed out.")
+                continue  # Skip this result if it timed out
+            if show_progress:
+                print(f"Accepted Geometries: {progress.value:.0f}, Rejected Geometries: {rejected.value:.0f}", end='\r', flush=True)
+    numbers = np.round(numbers, 4)
+    return numbers, atomos, structures
+
+###############################################################
+def AAsample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = lx.parser.pega_geom(freqlog)
     old = adjacency(geom, atomos)
     freqs, masses = lx.parser.pega_freq(freqlog)
