@@ -6,7 +6,7 @@ The easiest way to install is to use pip:
 
 `pip install LeoX`
 
-This will install the lates released version.
+This will install the latest released version.
 
 To install the version with the latest commit, run:
 
@@ -29,7 +29,7 @@ Once installed, you should be able to run the program from any folder in your co
 
 Start by creating a folder. Let's call this folder **Search**.
 
-The first step before running a conformation search is running an opt freq calculation using an initial geometry of your choice. Since the search requires running many calculation, it is advisable to use a cheap computational method. In the exampl below we will use the pm6 method for the initial search. Later, we will use more accurated methods for refining the results.
+The first step before running a conformational search is running an opt freq calculation using an initial geometry of your choice. Since the search requires running many calculations, it is advisable to use a cheap computational method. In the example below we will use the pm6 method for the initial search. Later, we will use more accurate methods for refining the results.
 
 The opt freq input file, which we will call **freq.com**, should then look something like the input below:
 
@@ -46,7 +46,7 @@ TITLE
 
 Run this opt freq calculation and make sure that the optimized geometry is converged.
 
-Next, we need to create a submission script, which we name **g16.sh**. The following is an example that first sets up some options and loads the appropriate modules. Adjust it according to the cluster you use. The essential line is the `bash $1` line.
+Next, we need to create a submission script, which we name **g16.sh**. The following is an example for usage with the slurm queue system. It first sets up some options and loads the appropriate modules. Adjust it according to the cluster and queue system you use. The essential line is the `bash $1` line.
 
 ```
 #!/bin/bash
@@ -62,7 +62,7 @@ module load Gaussian/16
 bash $1
 ```
 
-Now we create another script in a fille named **batch.sh**. It should contain the following in the case of a slurm queue system:
+Now we create another script in a file named **batch.sh**. It should contain the following in the case of a slurm queue system:
 
 ```
 sbatch g16.sh $1
@@ -164,7 +164,7 @@ Here we select how many jobs in each batch. For example, if you select 1, then 1
 g16 or g09?
 ```
 
-Select your gaussian version
+Select your Gaussian version
 
 ```
 g16
@@ -175,7 +175,7 @@ Now the conformational search is on its way.
 ## Checking Results
 
 
-As the conformational search proceeds, a file named **conformation.lx** will be generated. It will look something as follows:
+As the conformational search proceeds, a file named **conformation.lx** will be generated. It will look as follows:
 
 ```
 #Group  Energy(eV)  DeltaE(eV)  Prob@300K(%)  Rot1        Rot2        Rot3        Std1        Std2        Std3        Number  Last
@@ -187,18 +187,18 @@ As the conformational search proceeds, a file named **conformation.lx** will be 
 ```
 
 
-The first column **Group** lists the conformations found so far. The column **Energy(eV)** gives the average energy of the geometries classified in that conformation. The columns **DeltaE(eV)** shows the energy difference with respect to the lowest energy conformation found so far. 
+The first column **Group** lists the conformations found so far. The column **Energy(eV)** gives the average energy of the geometries classified in that conformation. The column **DeltaE(eV)** shows the energy difference with respect to the lowest energy conformation found so far. 
 
-The next column **Prob@300K(%)** gives the Boltzmann population at 300K for each conformation. The next 3 columns, **Rot1**,**Rot2** and **Rot3** give the average values of the rotational constants. Similarly, **Std1**, **Std2** and **Std3** give the corresponding standard deviation.
+The next column, **Prob@300K(%)**, gives the Boltzmann population at 300K for each conformation. The next 3 columns, **Rot1**,**Rot2** and **Rot3** give the average values of the rotational constants. Similarly, **Std1**, **Std2** and **Std3** give the corresponding standard deviations.
 
-Finally, the column **Number** shows how many geometries were classified in that category and the colum **Last** shows the number of the last geometry classified as belonging to that conformation.
+Finally, the column **Number** shows how many geometries were classified in that category and the column **Last** shows the number of the last geometry classified as belonging to that conformation.
 
 At the end of the file, information about the round progression and temperature used can be found.
 
 
 ## Refining Results
 
-Once the conformational search is completed. A folder named **Conformers** will be generated. Inside it, a number of Gaussian input files will be present, one for each conformation identified. These are input files for optimization. At this point, you should select a more accurate level of theory, add it to each of the input files and run these optimizations. Once they are completed, make sure the geometries have converged and run the **lx** command again. Once more, select option **6**. Now, when asked "Classify only?", answer y.
+Once the conformational search is completed, a folder named **Conformers** will be generated. Inside it, a number of Gaussian input files will be present, one for each conformation identified. These are input files for optimization. At this point, you should select a more accurate level of theory, add it to each of the input files and run these optimizations. Once they are completed, make sure the geometries have converged and run the **lx** command again. Once more, select option **6**. Now, when asked "Classify only?", answer y.
 
 A new **conformation.lx** file will be generated, with parameters taken from the more accurate level of theory. In this procedure, conformations that were originally different may collapse to the same category as a result. Now, the procedure is completed.
 
