@@ -2,6 +2,8 @@
 import os
 import sys
 import time
+import requests
+import pkg_resources  # Part of setuptools
 import subprocess
 from scipy.stats import norm
 import numpy as np
@@ -985,3 +987,21 @@ def ld():
 
 
 ###############################################################
+
+def check_for_updates(package_name):
+    try:
+        # Get the currently installed version
+        installed_version = pkg_resources.get_distribution(package_name).version
+        
+        # Fetch the latest version from PyPI
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
+        response.raise_for_status()
+        latest_version = response.json()['info']['version']
+
+        # Compare versions
+        if installed_version != latest_version:
+            print(f"ATTENTION: Update available! {package_name} {installed_version} -> {latest_version}")
+            print("Run `pip install --upgrade {}` to update.".format(package_name))
+
+    except Exception as e:
+        print(f"An error occurred while checking for updates: {e}")
