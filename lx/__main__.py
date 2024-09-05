@@ -33,6 +33,8 @@ def interface():
     print("\t8 - Get rid of imaginary frequencies")
     print("\t9 - Retrieve last geometry from log file")
     print("\t10 - Abort my calculations")
+    print('\n')
+    lx.tools.check_for_updates('LeoX')
     op = input()
     if op == "1":
         freqlog = lx.tools.fetch_file("frequency", [".log"])
