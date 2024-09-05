@@ -79,6 +79,11 @@ Your folder structure should look like the following:
     └── batch.sh
 ```
 
+Now you are ready to run the search.
+
+## Running the Conformational Search
+
+
 ```
  ▄█          ▄████████  ▄██████▄  ▀████    ▐████▀
 ███         ███    ███ ███    ███   ███▌   ████▀
