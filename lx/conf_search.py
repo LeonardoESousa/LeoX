@@ -96,7 +96,7 @@ def get_energies(folder, original_molecule):
             shutil.move(file[:-3] + "com", "Geometries/" + file[:-3] + "com")
         except FileNotFoundError:
             pass
-    return np.array(nums), np.array(scfs), np.array(rots)
+    return np.array(nums), np.array(scfs), np.array(rots), ["Geometries/" + i for i in files]
 
 
 ###############################################################
@@ -112,10 +112,11 @@ def measure(vec1, vec2, cr):
 
 
 class Conformation:
-    def __init__(self, rot, energy, identity, num) -> None:
+    def __init__(self, rot, energy, file, num) -> None:
         self.rot = rot[np.newaxis, :]
         self.energy = [energy]
-        self.identity = identity
+        self.file = file
+        self.identity = lx.tools.fingerprint(file, ".")
         self.std = rot / 1000
         self.num = [num]
 
@@ -164,7 +165,7 @@ def internal_comparison(conformations):
 
 
 def classify(conformations, folder):
-    nums, scfs, rots = get_energies(folder, conformations[0].identity)
+    nums, scfs, rots, files = get_energies(folder, conformations[0].identity)
     new_conformations = []
 
     total_geometries = rots.shape[0]
@@ -182,7 +183,7 @@ def classify(conformations, folder):
                 break
 
         if not matched:
-            new_conformations.append(Conformation(rots[i, :], scfs[i], conformations[0].identity, nums[i]))
+            new_conformations.append(Conformation(rots[i, :], scfs[i], files[i], nums[i]))
             new_conformation_count += 1
 
     conformations.extend(new_conformations)
@@ -222,39 +223,62 @@ def write_report(conformations, rounding, total_rounds, temp):
 
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
-def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
-    geomlog = f"Geometries/Geometry-{origin:.0f}-.log"
-    geom, atomos = lx.parser.pega_geom(geomlog)
-    header = f"%nproc={nproc}\n%mem={mem}\n# freq=(noraman) nosymm  {base} \n\nTITLE\n\n{cm}\n"
-    file = f"Freq-{origin:.0f}-.com"
-    lx.tools.write_input(atomos, geom, header, "", file)
-    the_watcher = lx.tools.Watcher('.',files=[file])
-    the_watcher.run(batch_file, gaussian, 1)
-    the_watcher.hold_watch()
-    #lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
-    log = file[:-3] + "log"
-    with open(log, "r",encoding='utf-8') as f:
-        for line in f:
-            if "Normal termination" in line:
-                return log
-            elif "Error termination" in line:
-                return None
+#def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
+#    geomlog = f"Geometries/Geometry-{origin:.0f}-.log"
+#    geom, atomos = lx.parser.pega_geom(geomlog)
+#    header = f"%nproc={nproc}\n%mem={mem}\n# freq=(noraman) nosymm  {base} \n\nTITLE\n\n{cm}\n"
+#    file = f"Freq-{origin:.0f}-.com"
+#    lx.tools.write_input(atomos, geom, header, "", file)
+#    the_watcher = lx.tools.Watcher('.',files=[file])
+#    the_watcher.run(batch_file, gaussian, 1)
+#    the_watcher.hold_watch()
+#    #lx.tools.rodar_lista([file], batch_file, gaussian, "conformation.lx", 1)
+#    log = file[:-3] + "log"
+#    with open(log, "r",encoding='utf-8') as f:
+#        for line in f:
+#            if "Normal termination" in line:
+#                return log
+#            elif "Error termination" in line:
+#                return None
 
 
 ###############################################################
 
+def refined_search(conformations):
+    try:
+        os.mkdir("Conformers")
+    except FileExistsError:
+        pass
+
+    for i, conformation in enumerate(conformations):
+        freqlog = conformation.file
+        _, _, nproc, mem, scrf, _ = lx.parser.busca_input(freqlog)
+        cm = lx.parser.get_cm(freqlog)
+        header = f"%nproc={nproc}\n%mem={mem}\n%chk=Group_{i+1}_.chk\n# pm6 {scrf} opt freq=noraman nosymm\n\nTITLE\n\n{cm}\n"
+        geom, atomos = lx.parser.pega_geom(freqlog)
+        lx.tools.write_input(
+            atomos, geom, header, "", f"Conformers/Geometry-{i+1}-.com"
+        )
 
 def classify_only():
+    try:
+        os.mkdir("Geometries")
+    except FileExistsError:
+        pass
+
     files = [i for i in os.listdir(".") if "Geometry-" in i and ".log" in i]
     conformations = []
     for file in files:
         num = int(file.split("-")[1])
         scf, rot = get_energy_origin(file)
         conformations.append(
-            Conformation(rot, scf, lx.tools.fingerprint(file, "."), num)
+            Conformation(rot, scf, file, num)
         )
     conformations = internal_comparison(conformations)
     write_report(conformations, 0, 0, 0)
+    refined_search(conformations)
+
+
 
 
 def main():
@@ -270,11 +294,10 @@ def main():
     script = sys.argv[10]
     gaussian = sys.argv[11]
     temp_0 = temperature
-    freq0 = freqlog
     if "td" in base.lower():
         opt = "=loose"
     else:
-        opt = ""
+        opt = "=(tight,calcall)"
 
     try:
         os.mkdir("Geometries")
@@ -285,7 +308,7 @@ def main():
         f"%nproc={nproc}\n%mem={mem}\n# opt{opt} nosymm  {base} \n\nTitle\n\n{cm}\n"
     )
     scf, rot = get_energy_origin(freqlog)
-    conformations = [Conformation(rot, scf, lx.tools.fingerprint(freqlog, "."), 0)]
+    conformations = [Conformation(rot, scf, freqlog, 0)]
     files = [i for i in os.listdir("Geometries") if "Geometry" in i and ".log" in i]
     if len(files) > 0:
         conformations = classify(conformations, "Geometries")
@@ -304,9 +327,8 @@ def main():
         write_report(conformations, i + 1, rounds, temp_0)
 
         if len(conformations) != groups:
-            log = rodar_freq(
-                conformations[-1].num[-1], nproc, mem, base, cm, script, gaussian
-            )
+            origin = conformations[-1].num[-1]
+            log = f"Geometries/Geometry-{origin:.0f}-.log"
             if log is not None:
                 freqlog = log
                 temp_0 = temperature
@@ -317,24 +339,7 @@ def main():
     with open("conformation.lx", "a",encoding='utf-8') as f:
         f.write("\n#Search concluded!")
 
-    try:
-        os.mkdir("Conformers")
-    except FileExistsError:
-        pass
-
-    for i, conformation in enumerate(conformations):
-        numero = conformation.num[-1]
-        if numero == 0:
-            freqlog = freq0
-        else:
-            freqlog = f"Geometries/Geometry-{numero:.0f}-.log"
-        _, _, nproc, mem, scrf, _ = lx.parser.busca_input(freqlog)
-        cm = lx.parser.get_cm(freqlog)
-        header = f"%nproc={nproc}\n%mem={mem}\n%chk=Group_{i+1}_.chk\n# pm6 {scrf} opt nosymm\n\nTITLE\n\n{cm}\n"
-        geom, atomos = lx.parser.pega_geom(freqlog)
-        lx.tools.write_input(
-            atomos, geom, header, "", f"Conformers/Geometry-{i+1}-.com"
-        )
+    refined_search(conformations)    
 
 
 if __name__ == "__main__":
