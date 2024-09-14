@@ -261,11 +261,6 @@ def refined_search(conformations):
         )
 
 def classify_only():
-    try:
-        os.mkdir("Geometries")
-    except FileExistsError:
-        pass
-
     files = [i for i in os.listdir(".") if "Geometry-" in i and ".log" in i]
     conformations = []
     for file in files:
@@ -297,7 +292,7 @@ def main():
     if "td" in base.lower():
         opt = "=loose"
     else:
-        opt = "=(tight,calcall)"
+        opt = " freq=noraman"
 
     try:
         os.mkdir("Geometries")
