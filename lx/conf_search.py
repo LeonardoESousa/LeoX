@@ -68,6 +68,7 @@ def get_energy_origin(freqlog):
 def get_energies(folder, original_molecule):
     nums, scfs, rots = [], [], []
     files = [i for i in os.listdir(folder) if ".log" in i and "Geometry" in i]
+    outfiles = []
     for file in files:
         exc = 0
         if np.array_equal(original_molecule, lx.tools.fingerprint(file, folder)):
@@ -89,6 +90,7 @@ def get_energies(folder, original_molecule):
                         scfs.append(scf)
                         nums.append(num)
                         rots.append(rot)
+                        outfiles.append('Geometries/'+file)
 
     for file in files:
         try:
@@ -96,7 +98,7 @@ def get_energies(folder, original_molecule):
             shutil.move(file[:-3] + "com", "Geometries/" + file[:-3] + "com")
         except FileNotFoundError:
             pass
-    return np.array(nums), np.array(scfs), np.array(rots), ["Geometries/" + i for i in files]
+    return np.array(nums), np.array(scfs), np.array(rots), outfiles
 
 
 ###############################################################
