@@ -324,8 +324,7 @@ def main():
         write_report(conformations, i + 1, rounds, temp_0)
 
         if len(conformations) != groups:
-            origin = conformations[-1].num[-1]
-            log = f"Geometries/Geometry-{origin:.0f}-.log"
+            log = conformations[-1].file
             if log is not None:
                 freqlog = log
                 temp_0 = temperature
