@@ -67,7 +67,7 @@ def get_energy_origin(freqlog):
 ##GETS ENERGIES FROM OPT LOG FILES#############################
 def get_energies(folder, original_molecule):
     nums, scfs, rots = [], [], []
-    files = [i for i in os.listdir(folder) if ".log" in i and "Geometry" in i]
+    files = [i for i in os.listdir(folder) if ".out" in i and "Geometry" in i]
     outfiles = []
     for file in files:
         exc = 0
@@ -226,7 +226,7 @@ def write_report(conformations, rounding, total_rounds, temp):
 
 ##RUNS FREQ CALCULATION FOR NEW CONFORMATION###################
 #def rodar_freq(origin, nproc, mem, base, cm, batch_file, gaussian):
-#    geomlog = f"Geometries/Geometry-{origin:.0f}-.log"
+#    geomlog = f"Geometries/Geometry-{origin:.0f}-.out"
 #    geom, atomos = lx.parser.pega_geom(geomlog)
 #    header = f"%nproc={nproc}\n%mem={mem}\n# freq=(noraman) nosymm  {base} \n\nTITLE\n\n{cm}\n"
 #    file = f"Freq-{origin:.0f}-.com"
@@ -263,7 +263,7 @@ def refined_search(conformations):
         )
 
 def classify_only():
-    files = [i for i in os.listdir(".") if "Geometry-" in i and ".log" in i]
+    files = [i for i in os.listdir(".") if "Geometry-" in i and ".out" in i]
     conformations = []
     for file in files:
         num = int(file.split("-")[1])
@@ -306,7 +306,7 @@ def main():
     )
     scf, rot = get_energy_origin(freqlog)
     conformations = [Conformation(rot, scf, freqlog, 0)]
-    files = [i for i in os.listdir("Geometries") if "Geometry" in i and ".log" in i]
+    files = [i for i in os.listdir("Geometries") if "Geometry" in i and ".out" in i]
     if len(files) > 0:
         conformations = classify(conformations, "Geometries")
         write_report(conformations, 0, rounds, temp_0)
