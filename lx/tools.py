@@ -8,7 +8,6 @@ import subprocess
 from scipy.stats import norm
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from joblib import Parallel, delayed
 from lx.ld import run_ld
 import lx.parser
@@ -277,16 +276,14 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
 
     args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
 
-    # Use tqdm for progress bar
-    with tqdm(total=num_geoms, desc="Sampling Geometries", disable=not show_progress) as pbar:
-        results = Parallel(n_jobs=-1)(
-            delayed(sample_single_geometry)(arg) for arg in args
-        )
-        pbar.update(num_geoms)  # Update progress bar after all jobs are done
+    # Use joblib to parallelize the geometry generation
+    results = Parallel(n_jobs=-1, verbose=show_progress)(
+        delayed(sample_single_geometry)(arg) for arg in args
+    )
 
     structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
     numbers = np.zeros((num_geoms, len(scales)))
-    rejected = 0
+    progress, rejected = 0, 0
 
     for j, output in enumerate(results):
         if output is None:
@@ -294,9 +291,9 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         structures[:, :, j] = output[0]
         numbers[j] = output[1].flatten()
         rejected += output[-1]
-
+        progress += 1
     if show_progress:
-        print(f"\nRejected Geometries: {rejected}")
+        print(f"\nAccepted Geometries: {progress} Rejected Geometries: {rejected}")
 
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
