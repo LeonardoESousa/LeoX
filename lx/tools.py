@@ -8,7 +8,8 @@ import subprocess
 from scipy.stats import norm
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
+from tqdm import tqdm
+from joblib import Parallel, delayed
 from lx.ld import run_ld
 import lx.parser
 
@@ -276,37 +277,27 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
 
     args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
 
-    # Shared value for tracking progress
-    progress = mp.Value('i', 0)
-    rejected = mp.Value('i', 0)
-    def update_progress(val):
-        with progress.get_lock():
-            progress.value += 1
-        with rejected.get_lock():
-            rejected.value += val[-1]
+    # Use tqdm for progress bar
+    with tqdm(total=num_geoms, desc="Sampling Geometries", disable=not show_progress) as pbar:
+        results = Parallel(n_jobs=-1)(
+            delayed(sample_single_geometry)(arg) for arg in args
+        )
+        pbar.update(num_geoms)  # Update progress bar after all jobs are done
 
-    # Use multiprocessing to parallelize the geometry generation
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        results = []
-        for arg in args:
-            result = pool.apply_async(sample_single_geometry, (arg,), callback=update_progress)
-            results.append(result)
+    structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
+    numbers = np.zeros((num_geoms, len(scales)))
+    rejected = 0
 
-        structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
-        numbers = np.zeros((num_geoms, len(scales)))
-        
-        for j, result in enumerate(results):
-            try:
-                output = result.get(timeout=30)  # Timeout of 30 seconds for each task
-                if output is None:
-                    continue
-                structures[:, :, j] = output[0]
-                numbers[j] = output[1].flatten()
-            except mp.TimeoutError:
-                print(f"Task {j} timed out.")
-                continue  # Skip this result if it timed out
-            if show_progress:
-                print(f"Accepted Geometries: {progress.value:.0f}, Rejected Geometries: {rejected.value:.0f}", end='\r', flush=True)
+    for j, output in enumerate(results):
+        if output is None:
+            continue
+        structures[:, :, j] = output[0]
+        numbers[j] = output[1].flatten()
+        rejected += output[-1]
+
+    if show_progress:
+        print(f"\nRejected Geometries: {rejected}")
+
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
 
