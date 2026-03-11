@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import requests
-import pkg_resources
+from importlib.metadata import version
 import subprocess
 from scipy.stats import norm
 import numpy as np
@@ -12,7 +12,8 @@ from joblib import Parallel, delayed
 from lx.ld import run_ld
 import lx.parser
 
-##SOME CONSTANTS##############################################
+## SOME CONSTANTS##############################################
+
 EPSILON_0 = lx.parser.EPSILON_0  # F/m
 HBAR_EV = lx.parser.HBAR_EV  # eV s
 HBAR_J = lx.parser.HBAR_J  # J s
@@ -165,7 +166,7 @@ def fingerprint(file, folder):
     return cm
 
 
-##SAVES OPT GEOMETRY###########################################
+## SAVES OPT GEOMETRY###########################################
 def salva_geom(geom, atomos):
     atomos = np.array([atomos]).astype(float)
     atomos = atomos.T
@@ -179,12 +180,12 @@ def salva_geom(geom, atomos):
 ###############################################################
 
 
-##WRITES ATOMS AND XYZ COORDS TO FILE##########################
+## WRITES ATOMS AND XYZ COORDS TO FILE##########################
 def write_input(atomos, geom, header, bottom, file):
     with open(file, "w", encoding="utf-8") as f:
         f.write(header)
         for i, atomo in enumerate(atomos):
-            texto = f"{atomo:2s}  {geom[i,0]:.6f}  {geom[i,1]:.6f}  {geom[i,2]:.6f}\n"
+            texto = f"{atomo:2s}  {geom[i, 0]:.6f}  {geom[i, 1]:.6f}  {geom[i, 2]:.6f}\n"
             f.write(texto)
         f.write("\n" + bottom + "\n")
 
@@ -192,7 +193,7 @@ def write_input(atomos, geom, header, bottom, file):
 ###############################################################
 
 
-##CHECKS FOR EXISTING GEOMETRIES###############################
+## CHECKS FOR EXISTING GEOMETRIES###############################
 def start_counter():
     files = [
         file
@@ -205,7 +206,7 @@ def start_counter():
 ###############################################################
 
 
-##DISTORTS GEOMETRIES IN DIRECTION OF IMAG FREQ################
+## DISTORTS GEOMETRIES IN DIRECTION OF IMAG FREQ################
 def distort(freqlog):
     temp = 300
     geom, atomos = lx.parser.pega_geom(freqlog)
@@ -219,7 +220,8 @@ def distort(freqlog):
         if freq < 0:
             f = -1 * freq
             q = 3 * np.sqrt(
-                HBAR_J / (2 * masses[i] * f * np.tanh(HBAR_EV * f / (2 * BOLTZ_EV * temp)))
+                HBAR_J / (2 * masses[i] * f *
+                          np.tanh(HBAR_EV * f / (2 * BOLTZ_EV * temp)))
             )
             q = np.array(q)
             final_geom += q * normal_coords[:, :, i]
@@ -235,7 +237,7 @@ def sample_single_geometry(args):
     geom, atomos, old, scales, normal_coord, warning = args
     rejected_geoms = 0
     ok = False
-    
+
     while not ok:
         try:
             start_geom = geom.copy()
@@ -245,15 +247,15 @@ def sample_single_geometry(args):
             new = adjacency(start_geom, atomos)
             difference = 0.5 * np.sum(np.abs(old - new))
 
-    
             if difference < 1 or not warning:
                 ok = True
                 return (start_geom, qs.T, rejected_geoms)
             else:
                 rejected_geoms += 1
-    
+
         except Exception as e:
             return None
+
 
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = lx.parser.pega_geom(freqlog)
@@ -271,10 +273,12 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         normal_coord = normal_coord[:, :, mask]
 
     scales = 1e10 * np.sqrt(
-        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
+        HBAR_J / (2 * masses * freqs *
+                  np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
     )
 
-    args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
+    args = [(geom, atomos, old, scales, normal_coord, warning)
+            for _ in range(num_geoms)]
 
     # Use joblib to parallelize the geometry generation
     results = Parallel(n_jobs=-1, verbose=show_progress)(
@@ -293,13 +297,14 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         rejected += output[-1]
         progress += 1
     if show_progress:
-        print(f"\nAccepted Geometries: {progress} Rejected Geometries: {rejected}")
+        print(
+            f"\nAccepted Geometries: {progress} Rejected Geometries: {rejected}")
 
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
 
 
-##MAKES ENSEMBLE###############################################
+## MAKES ENSEMBLE###############################################
 def make_ensemble(freqlog, num_geoms, temp, header, bottom):
     try:
         os.mkdir("Geometries")
@@ -307,7 +312,8 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
         pass
     counter = start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, structures = sample_geometries(freqlog, num_geoms, temp, show_progress=True)
+    numbers, atomos, structures = sample_geometries(
+        freqlog, num_geoms, temp, show_progress=True)
     freqs, masses = lx.parser.pega_freq(freqlog)
     # convert numbers to dataframe
     numbers = pd.DataFrame(
@@ -324,7 +330,8 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
         numbers = pd.concat([data, numbers], axis=0, ignore_index=True)
     # concatenate frequencies and masses to numbers
     numbers = pd.concat(
-        [pd.DataFrame(freqs, columns=["freq"]), pd.DataFrame(masses, columns=["mass"]), numbers],
+        [pd.DataFrame(freqs, columns=["freq"]), pd.DataFrame(
+            masses, columns=["mass"]), numbers],
         axis=1,
     )
     numbers.to_csv(f"Magnitudes_{temp:.0f}K_.lx", index=False)
@@ -343,7 +350,7 @@ def make_ensemble(freqlog, num_geoms, temp, header, bottom):
 ################################################################
 
 
-##COLLECTS RESULTS##############################################
+## COLLECTS RESULTS##############################################
 def gather_data(opc, tipo):
     files = [
         file
@@ -351,16 +358,16 @@ def gather_data(opc, tipo):
         if ".log" in file and "Geometr" in file
     ]
     files = [
-        i for i in files if "Normal termination" in open("Geometries/" + i, "r",encoding="utf-8").read()
+        i for i in files if "Normal termination" in open("Geometries/" + i, "r", encoding="utf-8").read()
     ]
     files = sorted(files, key=lambda file: float(file.split("-")[1]))
-    with open("Samples.lx", "w",encoding="utf-8") as f:
+    with open("Samples.lx", "w", encoding="utf-8") as f:
         for file in files:
             num = file.split("-")[1]
             broadening = opc
             numeros, energies, fs, scfs = [], [], [], []
             corrected, total_corrected = -1, -1
-            with open("Geometries/" + file, "r",encoding="utf-8") as g:
+            with open("Geometries/" + file, "r", encoding="utf-8") as g:
                 for line in g:
                     if "Excited State" in line:
                         line = line.split()
@@ -406,7 +413,7 @@ def gather_data(opc, tipo):
 ###############################################################
 
 
-##NORMALIZED GAUSSIAN##########################################
+## NORMALIZED GAUSSIAN##########################################
 def gauss(x, v, s):
     y = (1 / (np.sqrt(2 * np.pi) * s)) * np.exp(-0.5 * ((x - v) / s) ** 2)
     return y
@@ -415,7 +422,7 @@ def gauss(x, v, s):
 ###############################################################
 
 
-##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
+## COMPUTES AVG TRANSITION DIPOLE MOMENT########################
 def calc_tdm(osc_strength, vertical_energy):
     # Energy terms converted to J
     term = E_CHARGE * (HBAR_J**2) / vertical_energy
@@ -428,7 +435,7 @@ def calc_tdm(osc_strength, vertical_energy):
 ###############################################################
 
 
-##PREVENTS OVERWRITING#########################################
+## PREVENTS OVERWRITING#########################################
 def naming(arquivo):
     new_arquivo = arquivo
     if arquivo in os.listdir("."):
@@ -446,7 +453,7 @@ def naming(arquivo):
 ###############################################################
 
 
-##CALCULATES FLUORESCENCE LIFETIME IN S########################
+## CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_emi_rate(xd, yd, dyd):
     # Integrates the emission spectrum
     integrated_emission = np.trapz(yd, xd)
@@ -458,7 +465,7 @@ def calc_emi_rate(xd, yd, dyd):
 ###############################################################
 
 
-##COMPUTES SPECTRA#############################################
+## COMPUTES SPECTRA#############################################
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
         constante = (
@@ -474,7 +481,7 @@ def spectra(tipo, num_ex, nr):
         )
     vertical_energy, osc_strength, sigma = [], [], []
     number = 0
-    with open("Samples.lx", "r",encoding="utf-8") as f:
+    with open("Samples.lx", "r", encoding="utf-8") as f:
         for line in f:
             if "Geometry" in line:
                 number += 1
@@ -516,10 +523,12 @@ def spectra(tipo, num_ex, nr):
             "#Energy(ev)", "diff_rate", "error", tdm
         )
     arquivo = naming(arquivo)
-    y = espectro[:, np.newaxis] * gauss(x, vertical_energy[:, np.newaxis], sigma[:, np.newaxis])
+    y = espectro[:, np.newaxis] * \
+        gauss(x, vertical_energy[:, np.newaxis], sigma[:, np.newaxis])
     mean_y = np.sum(y, axis=0) / number
     # Error estimate
-    sigma = np.sqrt(np.sum((y - mean_y) ** 2, axis=0) / (number * (number - 1)))
+    sigma = np.sqrt(np.sum((y - mean_y) ** 2, axis=0) /
+                    (number * (number - 1)))
 
     if tipo == "emi":
         # Emission rate calculations
@@ -529,7 +538,7 @@ def spectra(tipo, num_ex, nr):
         segunda = "# Absorption from State: S0\n"
 
     print(number, "geometries considered.")
-    with open(arquivo, "w",encoding="utf-8") as f:
+    with open(arquivo, "w", encoding="utf-8") as f:
         f.write(primeira)
         f.write(segunda)
         for i in range(0, len(x)):
@@ -540,7 +549,7 @@ def spectra(tipo, num_ex, nr):
 
 ###############################################################
 
-##FETCHES  FILES###############################################
+## FETCHES  FILES###############################################
 def fetch_file(frase, ends):
     for file in [i for i in os.listdir(".")]:
         for end in ends:
@@ -551,7 +560,7 @@ def fetch_file(frase, ends):
 ###############################################################
 
 
-##RUNS TASK MANAGER############################################
+## RUNS TASK MANAGER############################################
 def batch():
     script = fetch_file("batch.sh", ["batch.sh"])
     limite = input("Maximum number of jobs to be submitted simultaneously?\n")
@@ -562,7 +571,7 @@ def batch():
         int(num)
     except ValueError:
         lx.parser.fatal_error("These must be integers. Goodbye!")
-    with open("limit.lx", "w",encoding="utf-8") as limit_file:
+    with open("limit.lx", "w", encoding="utf-8") as limit_file:
         limit_file.write(str(limite))
     subprocess.Popen(
         ["nohup", "lx_batch_run", script, gaussian, num, "&"]
@@ -571,7 +580,7 @@ def batch():
 ###############################################################
 
 
-##RUNS W TUNING################################################
+## RUNS W TUNING################################################
 def omega_tuning():
     geomlog = fetch_file("input or log", [".com", ".log"])
     base, _, nproc, mem, _, _ = lx.parser.busca_input(geomlog)
@@ -597,7 +606,8 @@ def omega_tuning():
             base,
             f"Functional/basis is {base}. If ok, Enter. Otherwise, type functional/basis.\n",
         )
-        nproc = default(nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
+        nproc = default(
+            nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
         mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
         omega1 = default(
             omega1,
@@ -613,7 +623,7 @@ def omega_tuning():
     script = fetch_file("batch script", ["batch.sh"])
     gaussian = input("g16 or g09?\n")
     parallel = input("Minimize submission of jobs: y/n\n")
-    with open("limit.lx", "w",encoding="utf-8") as f:
+    with open("limit.lx", "w", encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
         [
@@ -636,7 +646,7 @@ def omega_tuning():
 ###############################################################
 
 
-##RUNS CONFORMATIONAL SEARCH###################################
+## RUNS CONFORMATIONAL SEARCH###################################
 def conformational():
     freqlog = fetch_file("frequency", [".log"])
     freqs, _ = lx.parser.pega_freq(freqlog)
@@ -659,7 +669,8 @@ def conformational():
             base,
             f"Functional/basis is {base}. If ok, Enter. Otherwise, type functional/basis.\n",
         )
-        nproc = default(nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
+        nproc = default(
+            nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
         mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
         temp = default(
             temp, f"Initial temperature is {temp} K. If ok, Enter. Otherwise, type it.\n"
@@ -678,7 +689,7 @@ def conformational():
         int(numjobs)
     except ValueError:
         lx.parser.fatal_error("These must be integers. Goodbye!")
-    with open("limit.lx", "w",encoding="utf-8") as f:
+    with open("limit.lx", "w", encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
         [
@@ -703,10 +714,11 @@ def conformational():
 ###############################################################
 
 
-##FINDS SUITABLE VALUE FOR STD#################################
+## FINDS SUITABLE VALUE FOR STD#################################
 def detect_sigma():
     try:
-        files = [i for i in os.listdir(".") if "Magnitudes" in i and ".lx" in i]
+        files = [i for i in os.listdir(
+            ".") if "Magnitudes" in i and ".lx" in i]
         file = files[0]
         temp = float(file.split("_")[1].strip("K"))
         sigma = np.round(BOLTZ_EV * temp, 3)
@@ -718,14 +730,14 @@ def detect_sigma():
 ###############################################################
 
 
-##CHECKS SPECTRUM TYPE#########################################
+## CHECKS SPECTRUM TYPE#########################################
 def get_spec():
     coms = [
         file
         for file in os.listdir("Geometries")
         if "Geometr" in file and ".com" in file
     ]
-    with open("Geometries/" + coms[0], "r",encoding="utf-8") as f:
+    with open("Geometries/" + coms[0], "r", encoding="utf-8") as f:
         for line in f:
             if "ABSSPCT" in line:
                 tipo = "absorption"
@@ -739,7 +751,7 @@ def get_spec():
 ###############################################################
 
 
-##QUERY FUNCTION###############################################
+## QUERY FUNCTION###############################################
 def default(a, frase):
     b = input(frase)
     if b == "":
@@ -750,7 +762,7 @@ def default(a, frase):
 ###############################################################
 
 
-##SETS DIELECTRIC CONSTANTS####################################
+## SETS DIELECTRIC CONSTANTS####################################
 def set_eps(scrf):
     if "READ" in scrf.upper():
         eps1 = input("Type the static dielectric constant.\n")
@@ -769,7 +781,7 @@ def set_eps(scrf):
 ###############################################################
 
 
-##STOP SUBMISSION OF JOBS######################################
+## STOP SUBMISSION OF JOBS######################################
 def abort_batch():
     choice = input(
         "Are you sure you want to prevent new jobs from being submitted? y or n?\n"
@@ -787,7 +799,7 @@ def abort_batch():
 ###############################################################
 
 
-##DELETES CHK FILES############################################
+## DELETES CHK FILES############################################
 def delchk(input_file):
     num = input_file.split("-")[1]
     chks = [i for i in os.listdir(".") if f"_{num}.chk" in i]
@@ -800,10 +812,10 @@ def delchk(input_file):
 
 ###############################################################
 
-##CHECKS WHETHER THE JOB IS TWO STEP###########################
+## CHECKS WHETHER THE JOB IS TWO STEP###########################
 def set_factor(file):
     factor = 1
-    with open(file, "r",encoding="utf-8") as f:
+    with open(file, "r", encoding="utf-8") as f:
         for line in f:
             if "Link1" in line:
                 factor = 2
@@ -811,12 +823,15 @@ def set_factor(file):
     return factor
 ###############################################################
 
+
 class Watcher:
-    def __init__(self, folder,files=None,counter=1):
+    def __init__(self, folder, files=None, counter=1):
         self.folder = folder
         if files is None:
-            self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
-            self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+            self.files = [
+                i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
+            self.files = sorted(
+                self.files, key=lambda pair: float(pair.split("-")[1]))
         else:
             self.files = [i[:-4] for i in files]
         self.number_inputs = len(self.files)
@@ -831,7 +846,7 @@ class Watcher:
         for input_file in list_to_check:
             term = 0
             try:
-                with open(self.folder + "/" + input_file + ".log", "r",encoding="utf-8") as log_file:
+                with open(self.folder + "/" + input_file + ".log", "r", encoding="utf-8") as log_file:
                     for line in log_file:
                         if "Normal termination" in line:
                             term += 1
@@ -851,8 +866,10 @@ class Watcher:
     def report(self):
         self.check()
         print('\n\n')
-        print(f'There are {len(self.done)} successfully completed calculations out of {self.number_inputs} inputs.')
-        print(f'{100 * len(self.done) / self.number_inputs:.1f}% of the calculations have been run.')
+        print(
+            f'There are {len(self.done)} successfully completed calculations out of {self.number_inputs} inputs.')
+        print(
+            f'{100 * len(self.done) / self.number_inputs:.1f}% of the calculations have been run.')
         if len(self.error) > 0:
             print(f"There are {len(self.error)} failed jobs.")
             print('These are: ', self.error)
@@ -863,11 +880,11 @@ class Watcher:
         else:
             fold = '..'
         try:
-            return np.loadtxt(f"{fold}/limit.lx",encoding='utf-8')
-        except (OSError,FileNotFoundError):
+            return np.loadtxt(f"{fold}/limit.lx", encoding='utf-8')
+        except (OSError, FileNotFoundError):
             sys.exit()
 
-    def keep_going(self,num):
+    def keep_going(self, num):
         if len(self.running) / num < self.limit():
             return False
         return True
@@ -890,16 +907,18 @@ class Watcher:
                 self.running.append(input_file)
                 inputs.remove(input_file)
             command += "wait"
-            with open(f"cmd_{self.running_batches}_.sh", "w",encoding='utf-8') as cmd:
+            with open(f"cmd_{self.running_batches}_.sh", "w", encoding='utf-8') as cmd:
                 cmd.write(command)
-            sub = subprocess.call(["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
+            sub = subprocess.call(
+                ["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
             self.running_batches += 1
             keep = self.keep_going(num)
             while keep:
                 time.sleep(20)
                 self.check()
                 concluded = self.done + self.error
-                self.running = [elem for elem in self.running if elem not in concluded]
+                self.running = [
+                    elem for elem in self.running if elem not in concluded]
                 keep = self.keep_going(num)
 
     def hold_watch(self):
@@ -910,20 +929,25 @@ class Watcher:
 
 ###############################################################
 
-##CHECKS PROGRESS##############################################
+## CHECKS PROGRESS##############################################
+
+
 def andamento():
-    files = [i for i in os.listdir("Geometries") if "Geometr" in i and ".com" in i]
+    files = [i for i in os.listdir(
+        "Geometries") if "Geometr" in i and ".com" in i]
     factor = set_factor(files[0])
-    the_watcher = Watcher('Geometries',counter=factor)
+    the_watcher = Watcher('Geometries', counter=factor)
     the_watcher.report()
 ###############################################################
 
-##GETS SPECTRA#################################################
+## GETS SPECTRA#################################################
+
+
 def search_spectra():
     absorption, emission = "None", "None"
     candidates = [i for i in os.listdir(".") if ".lx" in i]
     for candidate in candidates:
-        with open(candidate, "r",encoding="utf-8") as f:
+        with open(candidate, "r", encoding="utf-8") as f:
             for line in f:
                 if "cross_section" in line:
                     absorption = candidate
@@ -935,7 +959,7 @@ def search_spectra():
 
 ###############################################################
 
-##RUNS EXCITON ANALYSIS########################################
+## RUNS EXCITON ANALYSIS########################################
 def ld():
     absorption, emission = search_spectra()
     print(f"Absorption file: {absorption}")
@@ -955,7 +979,8 @@ def ld():
     except ValueError:
         lx.parser.fatal_error("These features must be numbers. Goodbye!")
     if quantum_yield > 1 or quantum_yield < 0:
-        lx.parser.fatal_error("Quantum yield must be between 0 and 1. Goodbye!")
+        lx.parser.fatal_error(
+            "Quantum yield must be between 0 and 1. Goodbye!")
 
     correct = input("Include correction for short distances? y or n?\n")
     if correct == "y":
@@ -979,8 +1004,8 @@ def ld():
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
-        
+        installed_version = version(package_name)
+
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
         response.raise_for_status()
@@ -988,16 +1013,19 @@ def check_for_updates(package_name):
 
         # Compare versions
         if installed_version != latest_version:
-            print(f"ATTENTION: Update available! {package_name} {installed_version} -> {latest_version}")
+            print(
+                f"ATTENTION: Update available! {package_name} {installed_version} -> {latest_version}")
             print("Run `pip install --upgrade {}` to update.".format(package_name))
 
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
+
+
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
-        
+        installed_version = version(package_name)
+
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
         response.raise_for_status()
@@ -1005,8 +1033,10 @@ def check_for_updates(package_name):
 
         # Compare versions
         if installed_version != latest_version:
-            print(f"ATTENTION: Update available! {package_name} {installed_version} -> {latest_version}")
+            print(
+                f"ATTENTION: Update available! {package_name} {installed_version} -> {latest_version}")
             print("Run `pip install --upgrade {}` to update.".format(package_name))
 
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
+
