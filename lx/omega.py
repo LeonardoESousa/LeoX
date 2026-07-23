@@ -9,7 +9,7 @@ import lx.parser
 
 ##GENERATES NEUTRAL INPUT######################################
 def gera_optcom(atomos, G, base, nproc, mem, omega, op):
-    header = f"%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) {op}\n\nTITLE\n\n0 1\n"
+    header = f"%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) SCF=(YQC,MaxCycle=512) {op}\n\nTITLE\n\n0 1\n"
     header = (
         header.replace("JJJ", nproc)
         .replace("MEM", mem)
@@ -26,7 +26,7 @@ def gera_optcom(atomos, G, base, nproc, mem, omega, op):
 
 ##GENERATES ION INPUTS#########################################
 def gera_ioncom(atomos, G, base, nproc, mem, omega):
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000)\n\nTITLE\n\n1 2\n"
+    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) SCF=(YQC,MaxCycle=512)\n\nTITLE\n\n1 2\n"
     header = (
         header.replace("JJJ", nproc)
         .replace("MEM", mem)
@@ -36,7 +36,7 @@ def gera_ioncom(atomos, G, base, nproc, mem, omega):
     file1 = "pos_" + omega + "_.com"
     file2 = "neg_" + omega + "_.com"
     lx.tools.write_input(atomos, G, header, "", file1)
-    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) \n\nTITLE\n\n-1 2\n"
+    header = "%nproc=JJJ\n%mem=MEM\n# BASE iop(3/108=MMMMM00000) iop(3/107=MMMMM00000) SCF=(YQC,MaxCycle=512)\n\nTITLE\n\n-1 2\n"
     header = (
         header.replace("JJJ", nproc)
         .replace("MEM", mem)
@@ -44,7 +44,7 @@ def gera_ioncom(atomos, G, base, nproc, mem, omega):
         .replace("MMMMM", omega)
     )
     lx.tools.write_input(atomos, G, header, "", file2)
-    return [file1, file2]
+    return [file2, file1]
 
 
 ###############################################################
