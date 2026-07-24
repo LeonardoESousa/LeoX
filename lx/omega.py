@@ -206,6 +206,11 @@ def fetch_grad(x, f, i):
 
     return grad
 
+
+def round_j(value):
+    # Keep optimization state consistent with omega.lx printed precision.
+    return round(float(value), 4)
+
 def main():
     geomlog = sys.argv[1]
     basis = sys.argv[2]
@@ -239,7 +244,7 @@ def main():
         if data.ndim == 1:
             data = data.reshape(1, -1)
         omegas = data[:, 0].tolist()
-        Js = data[:, 1].tolist()
+        Js = [round_j(i) for i in data[:, 1].tolist()]
     except FileNotFoundError:
         pass    
 
@@ -253,14 +258,14 @@ def main():
                 #find existing omega closest to omega1
                 d_omega = [abs(omega1 - om) for om in omegas]
                 geom_log = omegas[d_omega.index(min(d_omega))]
-                geom_log = f"Logs/OPT-{geom_log:3.0f}-.log"
+                geom_log = f"Logs/OPT_{geom_log:05.0f}_.log"
                 G, atomos = lx.parser.pega_geom(geom_log)
             except (ValueError, FileNotFoundError):
                 G, atomos = lx.parser.pega_geom(geomlog)   
             J = rodar_omega(
                 atomos, G, basis, nproc, mem, omega1, op, script, gaussian, numjobs)
             omegas.append(omega1)
-            Js.append(J)
+            Js.append(round_j(J))
         omegas, Js = map(list, zip(*sorted(zip(omegas, Js))))
         #index of min J
         ind = Js.index(min(Js))
