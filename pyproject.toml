@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "LeoX"
+dynamic = ["version"]
+description = "Tools for simulations"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file =  "LICENSE"}
+authors = [{ name = "Leonardo Evaristo de Sousa", email = "ledso@dtu.dk" }]
+urls = { Homepage = "https://github.com/LeonardoESousa/LeoX" }
+
+# Keep pandas <2.0 and NumPy <2.0 (works well on Python 3.8–3.11)
+dependencies = [
+  "numpy<2.0",
+  "pandas<2.0",
+  "scipy",
+  "joblib",
+  "requests",
+]
+
+[project.scripts]
+lx = "lx.__main__:main"
+lx_batch_run = "lx.batch:run_batch"
+lx_omega = "lx.omega:main"
+lx_conf_search = "lx.conf_search:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lx*"]
+exclude = ["tests", "*.tests", "*.tests.*", "tests.*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "lx.__version__.__version__" }
