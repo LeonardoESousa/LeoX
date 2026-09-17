@@ -10,7 +10,6 @@ from scipy.stats import norm
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
-from lx.ld import run_ld
 import lx.parser
 
 ##SOME CONSTANTS##############################################
