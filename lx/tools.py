@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import importlib
 import os
 import sys
 import time
@@ -406,9 +407,9 @@ def naming(arquivo):
 ##CALCULATES FLUORESCENCE LIFETIME IN S########################
 def calc_emi_rate(xd, yd, dyd):
     # Integrates the emission spectrum
-    integrated_emission = np.trapz(yd, xd)
+    integrated_emission = np.trapezoid(yd, xd)
     taxa = (1 / HBAR_EV) * integrated_emission
-    error = (1 / HBAR_EV) * np.sqrt(np.trapz((dyd**2), xd))
+    error = (1 / HBAR_EV) * np.sqrt(np.trapezoid((dyd**2), xd))
     return taxa, error
 
 
@@ -892,51 +893,10 @@ def search_spectra():
 
 ###############################################################
 
-##RUNS EXCITON ANALYSIS########################################
-def ld():
-    absorption, emission = search_spectra()
-    print(f"Absorption file: {absorption}")
-    print(f"Emission file: {emission}")
-    check = input("Are these correct? y or n?\n")
-    if check == "n":
-        absorption = input("Type name of the absorption spectrum file\n")
-        emission = input("Type name of the emission spectrum file\n")
-
-    kappa = input("Orientation Factor (k^2):\n")
-    rmin = input("Average intermolecular distance in Å:\n")
-    quantum_yield = input("Fluorescence quantum yield (from 0 to 1):\n")
-    try:
-        rmin = float(rmin)
-        kappa = np.sqrt(float(kappa))
-        quantum_yield = float(quantum_yield)
-    except ValueError:
-        lx.parser.fatal_error("These features must be numbers. Goodbye!")
-    if quantum_yield > 1 or quantum_yield < 0:
-        lx.parser.fatal_error("Quantum yield must be between 0 and 1. Goodbye!")
-
-    correct = input("Include correction for short distances? y or n?\n")
-    if correct == "y":
-        alpha = 1.15 * 0.53
-        print("Employing correction!")
-    else:
-        alpha = 0
-        print("Not employing correction!")
-
-    print("Computing...")
-    try:
-        run_ld(absorption, emission, alpha, rmin, kappa, quantum_yield)
-        print("Results can be found in the ld.lx file")
-    except Exception as e:
-        print("Something went wrong. Check if the name of the files are correct.")
-        print(e)
-
-
-###############################################################
-
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
+        installed_version = importlib.metadata.version(package_name)
         
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')

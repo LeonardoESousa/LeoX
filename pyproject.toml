@@ -12,10 +12,10 @@ license = { file =  "LICENSE"}
 authors = [{ name = "Leonardo Evaristo de Sousa", email = "ledso@dtu.dk" }]
 urls = { Homepage = "https://github.com/LeonardoESousa/LeoX" }
 
-# Keep pandas <2.0 and NumPy <2.0 (works well on Python 3.8–3.11)
+
 dependencies = [
-  "numpy<2.0",
-  "pandas<2.0",
+  "numpy",
+  "pandas",
   "scipy",
   "joblib",
   "requests",

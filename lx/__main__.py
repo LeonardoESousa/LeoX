@@ -22,17 +22,13 @@ def interface():
     print("\t2 - Run the spectrum calculations")
     print("\t3 - Generate the spectrum")
     print("\t4 - Check the progress of the calculations")
-    print("EXCITON ANALYSIS:")
-    print(
-        "\t5 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths"
-    )
     print("CONFORMATIONAL ANALYSIS:")
-    print("\t6 - Perform conformational search")
+    print("\t5 - Perform conformational search")
     print("OTHER FEATURES:")
-    print("\t7 - Perform long-range parameter tuning")
-    print("\t8 - Get rid of imaginary frequencies")
-    print("\t9 - Retrieve last geometry from log file")
-    print("\t10 - Abort my calculations")
+    print("\t6 - Perform long-range parameter tuning")
+    print("\t7 - Get rid of imaginary frequencies")
+    print("\t8 - Retrieve last geometry from log file")
+    print("\t9 - Abort my calculations")
     print('\n')
     lx.tools.check_for_updates('LeoX')
     op = input()
@@ -155,8 +151,6 @@ def interface():
     elif op == "4":
         lx.tools.andamento()
     elif op == "5":
-        lx.tools.ld()
-    elif op == "6":
         question = input("Classify only? y or n?\n")
         if question.lower() == "y":
             try:
@@ -167,14 +161,14 @@ def interface():
                 )
         else:
             lx.tools.conformational()
-    elif op == "7":
+    elif op == "6":
         lx.tools.omega_tuning()
-    elif op == "8":
+    elif op == "7":
         freqlog = lx.tools.fetch_file(
             "Frequency log with imaginary frequencies", [".log"]
         )
         lx.tools.distort(freqlog)
-    elif op == "9":
+    elif op == "8":
         freqlog = lx.tools.fetch_file("log", [".log"])
         base, _, nproc, mem, scrf, _ = lx.parser.busca_input(freqlog)
         cm = lx.parser.get_cm(freqlog)
