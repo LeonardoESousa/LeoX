@@ -594,66 +594,28 @@ def omega_tuning():
 
 ##RUNS CONFORMATIONAL SEARCH###################################
 def conformational():
-    freqlog = fetch_file("frequency", [".log"])
-    freqs, _ = lx.parser.pega_freq(freqlog)
-    freqs_active = freqs[:40]
-    temp = int(HBAR_EV * freqs_active[-1] / BOLTZ_EV)
-    delta_temp = int(temp / 10)
-    temp, delta_temp = str(temp), str(delta_temp)
-    base, _, nproc, mem, _, _ = lx.parser.busca_input(freqlog)
-    if base == '':
-        base = 'pm6'
-    print("This is the configuration taken from the file:\n")
-    print(f"Functional/basis: {base}")
-    print(f"%nproc={nproc}")
-    print(f"%mem={mem}")
-    print(f"Initial Temperature: {temp} K")
-    print(f"Temperature step: {delta_temp} K")
-    change = input("Are you satisfied with these parameters? y or n?\n")
-    if change == "n":
-        base = default(
-            base,
-            f"Functional/basis is {base}. If ok, Enter. Otherwise, type functional/basis.\n",
-        )
-        nproc = default(nproc, f"nproc={nproc}. If ok, Enter. Otherwise, type it.\n")
-        mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
-        temp = default(
-            temp, f"Initial temperature is {temp} K. If ok, Enter. Otherwise, type it.\n"
-        )
-        delta_temp = default(
-            delta_temp, f"Temperature step is {delta_temp} K. If ok, Enter. Otherwise, type it.\n"
-        )
-    script = fetch_file("batch script", ["batch.sh"])
-    num_geoms = input("Number of geometries sampled at each round?\n")
-    rounds = input("Number of rounds?\n")
-    numjobs = input("Number of jobs in each batch?\n")
-    gaussian = input("g16 or g09?\n")
-    try:
-        int(num_geoms)
-        int(rounds)
-        int(numjobs)
-    except ValueError:
-        lx.parser.fatal_error("These must be integers. Goodbye!")
-    with open("limit.lx", "w",encoding="utf-8") as f:
-        f.write("10")
-    subprocess.Popen(
-        [
-            "nohup",
-            "lx_conf_search",
-            freqlog,
-            base,
-            nproc,
-            mem,
-            temp,
-            delta_temp,
-            num_geoms,
-            rounds,
-            numjobs,
-            script,
-            gaussian,
-            "&",
-        ]
-    )
+    gaussian_input = fetch_file("Gaussian input", [".com", ".gjf"])
+    settings = lx.parser.read_gaussian_input(gaussian_input)
+    print("Gaussian route: " + settings["route"])
+    print(f"Processors: {settings['nproc']}; memory: {settings['mem']}")
+    crest_batch = input("CREST SLURM batch script (must execute bash \"$1\"):\n").strip()
+    gaussian_batch = input("Gaussian SLURM batch script (must execute bash \"$1\"):\n").strip()
+    numjobs = int(default("10", "Maximum simultaneous Gaussian jobs [10]:\n"))
+    gaussian = default("g16", "Gaussian executable [g16]:\n").strip()
+    solvent = input("xTB/CREST ALPB solvent [Enter for gas phase]:\n").strip()
+    workdir = default("Conformational", "New output directory [Conformational]:\n").strip()
+    if numjobs < 1 or gaussian not in ("g16", "g09"):
+        raise ValueError("Use a positive job limit and g16/g09.")
+    if os.path.exists(workdir):
+        raise ValueError("Output directory already exists. Choose a new directory or use --classify-only.")
+    command = [sys.executable, "-m", "lx.conf_search", os.path.abspath(gaussian_input),
+               "--crest-batch", os.path.abspath(crest_batch), "--gaussian-batch", os.path.abspath(gaussian_batch),
+               "--gaussian", gaussian, "--max-jobs", str(numjobs), "--workdir", os.path.abspath(workdir)]
+    if solvent:
+        command += ["--solvent", solvent]
+    with open(workdir + ".log", "w", encoding="utf-8") as output:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+    print(f"Search started (PID {process.pid}); progress: {workdir}.log")
 
 
 ###############################################################
@@ -793,7 +755,7 @@ class Watcher:
                             term += 1
                             if term == self.counter:
                                 if self.counter == 2:
-                                    delchk(input)
+                                    delchk(input_file)
                                 self.done.append(input_file)
                                 del self.files[self.files.index(input_file)]
                                 break

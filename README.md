@@ -1,4 +1,4 @@
-﻿# LeoX - Light emission and exciton diffusion in organic molecules 
+# LeoX - Conformational search and range-separation tuning
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/LeoX?style=plastic)]()
@@ -8,7 +8,7 @@
 
 
 
-A package for absorption and fluorescence spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length). Long-range separation parameter tuning. Stochastic conformational search.  Interfaces with the Gaussian (09 or 16) package.
+A package for absorption and fluorescence spectrum simulations using the nuclear ensemble method along with TD(A)-DFT. Estimation of singlet exciton properties (Förster radius, lifetime, diffusion length). Long-range separation parameter tuning. xTB/CREST conformational search with Gaussian refinement.  Interfaces with the Gaussian (09 or 16) package.
 
 
 Table of Contents
@@ -37,7 +37,7 @@ Table of Contents
     - Calculates fluorescence lifetimes.
     - Calculates singlet exciton diffusion lengths.
 3. Conformational Search:
-    - Runs a stochastic coformational search algorithm. See [Tutorial](https://github.com/LeonardoESousa/LeoX/blob/master/Tutorial/Tutorial.md)
+    - Runs xTB/CREST sampling, Gaussian opt/freq refinement, and CREGEN deduplication. See [workflow](Tutorial/CREST_workflow.md)
 4.  Extra features:
     - Tunes the w parameter of long-range separated functionals.
     - Extracts last geometry from Gaussian log file.
@@ -75,5 +75,5 @@ Once installed, you should be able to run the program from any folder in your co
 
 ## How to use it?
 
-See [Tutorial](https://github.com/LeonardoESousa/LeoX/blob/master/Tutorial/Tutorial.md) for conformational search.
+See [CREST workflow](Tutorial/CREST_workflow.md) for conformational search. The old temperature-ramped search tutorial is superseded.
  

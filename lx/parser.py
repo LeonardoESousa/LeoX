@@ -1,6 +1,86 @@
 import sys
 import os
+import re
 import numpy as np
+
+ELEMENTS = (
+    "X H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca "
+    "Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr "
+    "Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd "
+    "Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg "
+    "Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm "
+    "Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og"
+).split()
+
+
+def element_symbol(atom):
+    """Return a chemical symbol for an element label or atomic number."""
+    if atom.isdigit():
+        number = int(atom)
+        if not 1 <= number < len(ELEMENTS):
+            raise ValueError("Unsupported atomic number: " + atom)
+        return ELEMENTS[number]
+    symbol = atom.capitalize()
+    if symbol not in ELEMENTS[1:]:
+        raise ValueError("Unsupported element label: " + atom)
+    return symbol
+
+
+def read_gaussian_input(filename):
+    """Read a single-job Gaussian input with an explicit Cartesian geometry.
+
+    Preserve route, Link 0 settings, title, and post-geometry sections, including
+    custom basis sets and solvent data. Checkpoint-only and Z-matrix inputs are
+    rejected rather than interpreted as Cartesian coordinates.
+    """
+    with open(filename, encoding="utf-8") as handle:
+        text = handle.read()
+    if "--link1--" in text.lower():
+        raise ValueError("Use a single-job Gaussian template; opt/freq Link1 is generated automatically.")
+    sections = re.split(r"\n\s*\n", text.strip())
+    if len(sections) < 3:
+        raise ValueError("Missing Gaussian route, title, or Cartesian geometry.")
+    header = sections[0].splitlines()
+    route_start = next((i for i, line in enumerate(header) if line.lstrip().startswith("#")), None)
+    if route_start is None:
+        raise ValueError("Missing Gaussian route section.")
+    link0 = [line.strip() for line in header[:route_start] if line.strip()]
+    if any(not line.startswith("%") for line in link0):
+        raise ValueError("Unexpected text before the Gaussian route.")
+    route = " ".join(line.strip() for line in header[route_start:])
+    if re.search(r"\b(?:geom\s*=\s*(?:\([^)]*)?(?:allcheck|check\w*)|guess\s*=\s*(?:\([^)]*)?read)\b", route, re.I):
+        raise ValueError("The starting template must not depend on a checkpoint geometry or wavefunction.")
+    if any(line.lower().startswith("%oldchk") for line in link0):
+        raise ValueError("%oldchk is not supported in a fresh conformer template.")
+    molecule = sections[2].splitlines()
+    cm = molecule[0].split()
+    if len(cm) != 2:
+        raise ValueError("Expected one charge and multiplicity pair.")
+    charge, multiplicity = map(int, cm)
+    if multiplicity < 1:
+        raise ValueError("Multiplicity must be positive.")
+    atoms, coordinates = [], []
+    for line in molecule[1:]:
+        fields = line.replace(",", " ").split()
+        if len(fields) != 4:
+            raise ValueError("Expected element X Y Z; frozen atoms and Z-matrices are not supported.")
+        atoms.append(element_symbol(fields[0]))
+        coordinates.append([float(value.replace("D", "E").replace("d", "e")) for value in fields[1:]])
+    if not atoms or not np.isfinite(coordinates).all():
+        raise ValueError("Missing or invalid Cartesian coordinates.")
+    nproc, mem = 1, "1GB"
+    for line in link0:
+        name, _, value = line.partition("=")
+        name = name.strip()
+        if name.lower() in ("%nproc", "%nprocshared"):
+            nproc = int(value)
+        elif name.lower() == "%mem":
+            mem = value.strip()
+    if nproc < 1:
+        raise ValueError("%nproc/%nprocshared must be positive.")
+    return dict(link0=link0, route=route, title=sections[1], charge=charge,
+                multiplicity=multiplicity, atoms=atoms, geometry=np.array(coordinates),
+                nproc=nproc, mem=mem, bottom="\n\n".join(sections[3:]))
 
 ##SOME CONSTANTS##############################################
 EPSILON_0 = 8.854187817e-12  # F/m
@@ -53,7 +133,12 @@ def pega_freq(freqlog):
 
 
 def pega_geom(freqlog):
-    if ".log" in freqlog:
+    if os.path.splitext(str(freqlog))[1].lower() in (".com", ".gjf"):
+        data = read_gaussian_input(freqlog)
+        return data["geometry"], data["atoms"]
+    geom = np.zeros((1, 3))
+    atomos = []
+    if ".log" in str(freqlog):
         busca = " orientation:"
         fetch = False
         with open(freqlog, "r",encoding='utf-8') as f:
@@ -71,7 +156,7 @@ def pega_geom(freqlog):
                             NG.append(float(line[j]))
                         atomos.append(line[1])
                         geom = np.vstack((geom, NG))
-                    except ValueError:
+                    except (ValueError, IndexError):
                         if len(atomos) > 0:
                             fetch = False
     else:
@@ -87,6 +172,7 @@ def pega_geom(freqlog):
                 except (IndexError, ValueError):
                     pass
     geom = geom[1:, :]
+    atomos = [element_symbol(atom) for atom in atomos]
     return geom, atomos
 
 
