@@ -246,6 +246,25 @@ def gaussian_result(filename):
                 comment=f"{electronic:.12f}", source=str(Path(filename).resolve()))
 
 
+def aligned_rmsd(geometry, reference):
+    """Compare geometries after translation and proper rotation (no reflection).
+
+    This identifies the source of a CREGEN output, not a new clustering rule.
+    CREGEN's own thresholds still determine which conformers are retained.
+    """
+    geometry = np.asarray(geometry, dtype=float)
+    reference = np.asarray(reference, dtype=float)
+    if geometry.shape != reference.shape or geometry.size == 0:
+        return float("inf")
+    centered = geometry - geometry.mean(axis=0)
+    target = reference - reference.mean(axis=0)
+    left, _, right = np.linalg.svd(centered.T @ target)
+    if np.linalg.det(left @ right) < 0:
+        left[:, -1] *= -1
+    difference = centered @ (left @ right) - target
+    return float(np.sqrt(np.mean(np.sum(difference ** 2, axis=1))))
+
+
 def populations(energies):
     delta = (np.asarray(energies) - min(energies)) * HARTREE_EV
     weights = np.exp(-delta / (lx.parser.BOLTZ_EV * TEMPERATURE))
@@ -308,14 +327,22 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
         unique = read_xyz(output)
         representatives = []
         for structure in unique:
-            matches = [item for item in results if item["atoms"] == structure["atoms"]
-                       and np.allclose(item["geometry"], structure["geometry"], atol=2e-5, rtol=0)]
-            if not matches:
-                raise ValueError("CREGEN returned an unrecognized geometry; inspect cregen.log.")
             energy = float(structure["comment"].split()[0])
-            match = min(matches, key=lambda item: abs(item["energy"] - energy))
-            if abs(match["energy"] - energy) > 1e-7:
-                raise ValueError("CREGEN changed or misread the supplied Hartree energy.")
+            candidates = [item for item in results if item["atoms"] == structure["atoms"]
+                          and abs(item["energy"] - energy) <= 1e-6]
+            matches = [(aligned_rmsd(item["geometry"], structure["geometry"]), item)
+                       for item in candidates]
+            if not matches:
+                raise ValueError(
+                    f"CREGEN output has no source with matching elements and energy "
+                    f"({energy:.12f} Hartree). Compare crest_reoptimized.xyz "
+                    f"and crest_reoptimized.xyz.sorted.")
+            rmsd, match = min(matches, key=lambda pair: pair[0])
+            if rmsd > 5e-4:
+                raise ValueError(
+                    f"CREGEN output does not match a source after alignment "
+                    f"(best RMSD {rmsd:.6f} Angstrom). Compare atom ordering/units in "
+                    f"crest_reoptimized.xyz and crest_reoptimized.xyz.sorted.")
             representatives.append(match)
         write_xyz(folder / "conformers_unique.xyz", representatives)
     write_report(representatives, folder / "conformation.lx")
