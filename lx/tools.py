@@ -593,13 +593,26 @@ def omega_tuning():
 
 
 ##RUNS CONFORMATIONAL SEARCH###################################
+def find_batch_script(interactive=False):
+    """Find a shared SLURM batch script in the current folder."""
+    scripts = sorted(name for name in os.listdir(".")
+                     if name.endswith(".sh") and os.path.isfile(name))
+    if not scripts:
+        raise ValueError("No .sh batch script found in the current folder.")
+    if len(scripts) == 1:
+        return scripts[0]
+    if interactive:
+        return fetch_file("shared SLURM batch script", [".sh"])
+    raise ValueError("Multiple .sh scripts found; select one with --batch: " + ", ".join(scripts))
+
+
 def conformational():
     gaussian_input = fetch_file("Gaussian input", [".com", ".gjf"])
     settings = lx.parser.read_gaussian_input(gaussian_input)
     print("Gaussian route: " + settings["route"])
     print(f"Processors: {settings['nproc']}; memory: {settings['mem']}")
-    crest_batch = input("CREST SLURM batch script (must execute bash \"$1\"):\n").strip()
-    gaussian_batch = input("Gaussian SLURM batch script (must execute bash \"$1\"):\n").strip()
+    batch_file = find_batch_script(interactive=True)
+    print("Shared CREST/Gaussian SLURM script: " + batch_file)
     numjobs = int(default("10", "Maximum simultaneous Gaussian jobs [10]:\n"))
     gaussian = default("g16", "Gaussian executable [g16]:\n").strip()
     solvent = input("xTB/CREST ALPB solvent [Enter for gas phase]:\n").strip()
@@ -609,7 +622,7 @@ def conformational():
     if os.path.exists(workdir):
         raise ValueError("Output directory already exists. Choose a new directory or use --classify-only.")
     command = [sys.executable, "-m", "lx.conf_search", os.path.abspath(gaussian_input),
-               "--crest-batch", os.path.abspath(crest_batch), "--gaussian-batch", os.path.abspath(gaussian_batch),
+               "--batch", os.path.abspath(batch_file),
                "--gaussian", gaussian, "--max-jobs", str(numjobs), "--workdir", os.path.abspath(workdir)]
     if solvent:
         command += ["--solvent", solvent]

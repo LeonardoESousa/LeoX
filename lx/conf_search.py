@@ -111,7 +111,7 @@ def route_tokens(route):
 def gaussian_routes(template):
     common, opt, freq_option, connected = [], "opt", "freq=noraman", False
     for token in route_tokens(template["route"]):
-        key = re.split(r"[=(]", token.lower(), 1)[0]
+        key = re.split(r"[=(]", token.lower(), maxsplit=1)[0]
         if key == "opt":
             if re.search(r"\b(ts|qst2|qst3|restart|modredundant|addgic|readfreeze)\b", token, re.I):
                 raise ValueError("Use an unconstrained minimum optimization template, not TS/QST/restart/read constraints.")
@@ -132,7 +132,7 @@ def gaussian_routes(template):
             common.append(token)
     route = " ".join(common)
     optimization = f"#p {route} {opt}" + (" geom=connectivity" if connected else "")
-    frequency_route = " ".join(token for token in common if re.split(r"[=(]", token.lower(), 1)[0] != "guess")
+    frequency_route = " ".join(token for token in common if re.split(r"[=(]", token.lower(), maxsplit=1)[0] != "guess")
     frequency = f"#p {frequency_route} {freq_option} temperature=300 geom=allcheck guess=read"
     tail = template["bottom"]
     if connected:
@@ -381,6 +381,7 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("gaussian_input", nargs="?")
+    parser.add_argument("--batch", help="Shared SLURM script for CREST and Gaussian; auto-detected if omitted.")
     parser.add_argument("--crest-batch")
     parser.add_argument("--gaussian-batch")
     parser.add_argument("--gaussian", choices=("g09", "g16"), default="g16")
@@ -402,9 +403,14 @@ def main(argv=None):
             classify_only(args.classify_only, args.crest, args.rthr, args.ethr,
                           settings.get("charge", 0), settings.get("uhf", 0))
         else:
-            if not args.gaussian_input or not args.crest_batch or not args.gaussian_batch:
-                parser.error("Provide a Gaussian input, --crest-batch, and --gaussian-batch.")
-            run_workflow(args.gaussian_input, args.crest_batch, args.gaussian_batch, args.gaussian,
+            if not args.gaussian_input:
+                parser.error("Provide a Gaussian input file.")
+            shared_batch = args.batch
+            if not (shared_batch or args.crest_batch or args.gaussian_batch):
+                shared_batch = lx.tools.find_batch_script()
+            crest_batch = args.crest_batch or shared_batch or args.gaussian_batch
+            gaussian_batch = args.gaussian_batch or shared_batch or args.crest_batch
+            run_workflow(args.gaussian_input, crest_batch, gaussian_batch, args.gaussian,
                          args.max_jobs, args.workdir, args.xtb, args.crest, args.solvent, args.rthr, args.ethr)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"Conformational search failed: {error}", file=sys.stderr, flush=True)
