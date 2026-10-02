@@ -275,19 +275,40 @@ def write_report(results, filename):
     results = sorted(results, key=lambda item: item["energy"])
     delta_e, pop_e = populations([item["energy"] for item in results])
     delta_g, pop_g = populations([item["gibbs"] for item in results])
-    with open(filename, "w", encoding="utf-8") as handle:
-        handle.write("# Unique optimized minima; populations at 300 K.\n")
-        handle.write("# PopE uses electronic energies; PopG uses Gaussian RRHO Gibbs energies at 300 K.\n")
-        handle.write("# Each unique minimum has weight 1; sampling/collapse counts are not degeneracies.\n")
-        handle.write("#Group E(Hartree) DeltaE(eV) PopE(%) G(Hartree) DeltaG(eV) PopG(%) Gaussian_log\n")
+    with open(filename, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["Group", "E_Hartree", "DeltaE_eV", "PopE_300K_percent",
+                         "G_Hartree", "DeltaG_eV", "PopG_300K_percent", "Gaussian_log"])
         for index, item in enumerate(results):
-            handle.write(f"{index+1} {item['energy']:.12f} {delta_e[index]:.8f} {pop_e[index]:.5f} "
-                         f"{item['gibbs']:.12f} {delta_g[index]:.8f} {pop_g[index]:.5f} {item['source']}\n")
+            writer.writerow([index + 1, f"{item['energy']:.12f}", f"{delta_e[index]:.8f}",
+                             f"{pop_e[index]:.5f}", f"{item['gibbs']:.12f}",
+                             f"{delta_g[index]:.8f}", f"{pop_g[index]:.5f}",
+                             Path(item["source"]).name])
+
+
+def organize_outputs(folder):
+    """Keep only the population report, manifest and unique ensemble at top level."""
+    inputs = folder / "Inputs"
+    cregen = folder / "CREGEN"
+    inputs.mkdir(exist_ok=True)
+    cregen.mkdir(exist_ok=True)
+    for name in ("template.com", "search.json"):
+        previous = folder / name
+        if previous.is_file():
+            previous.replace(inputs / name)
+    for name in ("crest_reference.xyz", "crest_reoptimized.xyz",
+                 "crest_reoptimized.xyz.sorted", "cregen.log",
+                 "rejected_conformers.csv", "conformation.lx"):
+        previous = folder / name
+        if previous.is_file():
+            previous.replace(cregen / name)
+    return cregen
 
 
 def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uhf=0):
     """Re-sort completed Gaussian opt/freq logs without repeating calculations."""
     folder = Path(folder).resolve()
+    cregen_folder = organize_outputs(folder)
     files = sorted(set(folder.glob("Geometry-*.log")) | set((folder / "Geometries").glob("Geometry-*.log")))
     expected = list(folder.glob("Geometry-*.com")) + list((folder / "Geometries").glob("Geometry-*.com"))
     files = sorted(set(files) | {filename.with_suffix(".log") for filename in expected})
@@ -297,18 +318,18 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
             results.append(gaussian_result(filename))
         except (OSError, ValueError) as error:
             rejected.append((str(filename), str(error)))
-    with open(folder / "rejected_conformers.csv", "w", newline="", encoding="utf-8") as handle:
+    with open(cregen_folder / "rejected_conformers.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Gaussian_log", "reason"])
         writer.writerows(rejected)
     if not results:
-        raise ValueError("No completed, verified minima. See rejected_conformers.csv.")
+        raise ValueError("No completed, verified minima. See CREGEN/rejected_conformers.csv.")
     if any(item["atoms"] != results[0]["atoms"] for item in results):
         raise ValueError("Gaussian outputs have inconsistent element sequences.")
     energy_span = (max(item["energy"] for item in results) - min(item["energy"] for item in results)) * 627.509474
-    write_xyz(folder / "crest_reference.xyz", [results[0]])
-    write_xyz(folder / "crest_reoptimized.xyz", results)
-    with TemporaryDirectory(prefix="cregen-", dir=folder) as temporary:
+    write_xyz(cregen_folder / "crest_reference.xyz", [results[0]])
+    write_xyz(cregen_folder / "crest_reoptimized.xyz", results)
+    with TemporaryDirectory(prefix="cregen-", dir=cregen_folder) as temporary:
         sort_folder = Path(temporary)
         write_xyz(sort_folder / "reference.xyz", [results[0]])
         write_xyz(sort_folder / "reoptimized.xyz", results)
@@ -320,10 +341,10 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
         finally:
             logfile = sort_folder / "cregen.log"
             if logfile.exists():
-                (folder / "cregen.log").write_text(logfile.read_text(encoding="utf-8"), encoding="utf-8")
+                (cregen_folder / "cregen.log").write_text(logfile.read_text(encoding="utf-8"), encoding="utf-8")
         # Standalone CREGEN 3.0.2 writes <input>.sorted.
         output = sort_folder / "reoptimized.xyz.sorted"
-        (folder / "crest_reoptimized.xyz.sorted").write_text(output.read_text(encoding="utf-8"), encoding="utf-8")
+        (cregen_folder / "crest_reoptimized.xyz.sorted").write_text(output.read_text(encoding="utf-8"), encoding="utf-8")
         unique = read_xyz(output)
         representatives = []
         for structure in unique:
@@ -345,13 +366,13 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
                     f"crest_reoptimized.xyz and crest_reoptimized.xyz.sorted.")
             representatives.append(match)
         write_xyz(folder / "conformers_unique.xyz", representatives)
-    write_report(representatives, folder / "conformation.lx")
+    write_report(representatives, folder / "conformation.csv")
     retained = {item["source"] for item in representatives}
     with open(folder / "conformers_manifest.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Gaussian_log", "E_Hartree", "G_Hartree", "status"])
         for item in results:
-            writer.writerow([item["source"], item["energy"], item["gibbs"],
+            writer.writerow([Path(item["source"]).name, item["energy"], item["gibbs"],
                              "representative" if item["source"] in retained else "removed by CREGEN (duplicate/rotamer/topology)"])
     print(f"{len(results)} verified minima -> {len(representatives)} conformers; {len(rejected)} rejected logs.", flush=True)
     return representatives
@@ -371,11 +392,12 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
             raise ValueError(f"Expected a SLURM batch script that executes bash \"$1\": {batch}")
     folder = Path(workdir).resolve()
     folder.mkdir()  # Never overwrite a previous search or completed jobs.
+    organize_outputs(folder)
     xtb_folder, crest_folder, gaussian_folder = [folder / name for name in ("xTB", "CREST", "Geometries")]
     for stage in (xtb_folder, crest_folder, gaussian_folder):
         stage.mkdir()
-    (folder / "template.com").write_text(Path(gaussian_input).read_text(encoding="utf-8"), encoding="utf-8")
-    (folder / "search.json").write_text(json.dumps(dict(charge=template["charge"],
+    (folder / "Inputs" / "template.com").write_text(Path(gaussian_input).read_text(encoding="utf-8"), encoding="utf-8")
+    (folder / "Inputs" / "search.json").write_text(json.dumps(dict(charge=template["charge"],
         uhf=template["multiplicity"]-1, nproc=template["nproc"], solvent=solvent), indent=2), encoding="utf-8")
     print("Optimizing the starting geometry with GFN2-xTB locally...", flush=True)
     write_xyz(xtb_folder / "start.xyz", [dict(atoms=template["atoms"], geometry=template["geometry"])])
@@ -401,7 +423,7 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
     if failed:
         print("Failed Gaussian jobs (excluded from the final ensemble): " + ", ".join(failed), flush=True)
     result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1)
-    print(f"Search complete. Report: {folder / 'conformation.lx'}", flush=True)
+    print(f"Search complete. Report: {folder / 'conformation.csv'}", flush=True)
     return result
 
 
@@ -425,7 +447,9 @@ def main(argv=None):
         if args.rthr <= 0 or args.ethr < 0:
             raise ValueError("RMSD threshold must be positive; energy threshold must be nonnegative.")
         if args.classify_only:
-            config = Path(args.classify_only) / "search.json"
+            config = Path(args.classify_only) / "Inputs" / "search.json"
+            if not config.exists():
+                config = Path(args.classify_only) / "search.json"
             settings = json.loads(config.read_text()) if config.exists() else {}
             classify_only(args.classify_only, args.crest, args.rthr, args.ethr,
                           settings.get("charge", 0), settings.get("uhf", 0))

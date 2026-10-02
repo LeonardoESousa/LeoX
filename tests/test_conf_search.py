@@ -128,7 +128,7 @@ class WorkflowTests(unittest.TestCase):
         (self.root / 'Geometry-1-.com').write_text('input')
         with self.assertRaisesRegex(ValueError, 'No completed, verified minima'):
             conf.classify_only(self.root)
-        self.assertIn('Geometry-1-.log', (self.root / 'rejected_conformers.csv').read_text())
+        self.assertIn('Geometry-1-.log', (self.root / 'CREGEN/rejected_conformers.csv').read_text())
 
     def test_watcher_finishes_killed_jobs_and_waits_for_both_links(self):
         previous = Path.cwd()
@@ -187,13 +187,16 @@ class WorkflowTests(unittest.TestCase):
                                         workdir=self.root/'search', solvent='toluene')
         self.assertEqual(len(results), 2)
         self.assertEqual(Path(results[0]['source']).name, 'Geometry-2-.log')
-        report = (self.root/'search/conformation.lx').read_text()
-        rows = [line.split() for line in report.splitlines() if not line.startswith('#')]
+        with (self.root/'search/conformation.csv').open(newline='') as handle:
+            rows = list(csv.reader(handle))[1:]
+        final_files = {path.name for path in (self.root/'search').iterdir() if path.is_file()}
+        self.assertEqual(final_files, {'conformation.csv', 'conformers_manifest.csv', 'conformers_unique.xyz'})
+        self.assertEqual(rows[0][7], 'Geometry-2-.log')
         self.assertEqual(len(rows), 2)
         self.assertAlmostEqual(sum(float(row[3]) for row in rows), 100, places=4)
         self.assertEqual([float(row[3]) for row in rows], [50., 50.])
         self.assertGreater(float(rows[0][6]), float(rows[1][6]))
-        self.assertIn('Geometry-4-.log', (self.root/'search/rejected_conformers.csv').read_text())
+        self.assertIn('Geometry-4-.log', (self.root/'search/CREGEN/rejected_conformers.csv').read_text())
         self.assertIn('--chrg', commands[0])
         self.assertIn('-1', commands[0])
         self.assertIn('--alpb', commands[0])
