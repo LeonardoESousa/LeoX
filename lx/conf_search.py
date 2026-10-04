@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -149,6 +150,9 @@ def make_gaussian_inputs(template, structures, folder):
         if structure["atoms"] != template["atoms"]:
             raise ValueError("CREST changed the atom sequence; cannot reuse the Gaussian template.")
         name = f"Geometry-{index}-.com"
+        if (Path(folder) / name).is_file():
+            files.append(name)
+            continue
         checkpoint = f"conformer_{index}.chk"
         # Use a distinct checkpoint/scratch file for every concurrent calculation.
         link0 = [line for line in template["link0"]
@@ -189,6 +193,10 @@ def run_gaussian_jobs(template, batch, files, folder, max_jobs):
     wrapper.write_text('#!/bin/bash\n(\n' + submission + ' > "$1.slurm.log" 2>&1\n'
                        'status=$?\nprintf "%s\\n" "$status" > "$1.status"\n) < /dev/null &\n', encoding="utf-8")
     (folder / "limit.lx").write_text(str(max_jobs), encoding="utf-8")
+    # Old logs and status files must not make Watcher finish a resubmitted job early.
+    for index, name in enumerate(files):
+        (folder / f"cmd_{index}_.sh.status").unlink(missing_ok=True)
+        (folder / Path(name).with_suffix(".log")).unlink(missing_ok=True)
     previous = Path.cwd()
     os.chdir(folder)
     try:
@@ -219,12 +227,94 @@ def frequency_is_stationary(filename):
     return stationary
 
 
+def save_json(filename, data):
+    """Commit stage metadata atomically so an interruption cannot truncate it."""
+    filename = Path(filename)
+    temporary = filename.with_name(filename.name + ".tmp")
+    temporary.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    temporary.replace(filename)
+
+
+def file_digest(filename):
+    import hashlib
+    digest = hashlib.sha256()
+    with open(filename, "rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def gaussian_finished(filename):
+    """Completion is distinct from passing the stationary-point/minimum check."""
+    filename = Path(filename)
+    if not filename.is_file():
+        return False
+    text = filename.read_text(encoding="utf-8", errors="replace")
+    return ("Error termination" not in text and text.count("Normal termination") == 2
+            and "Frequencies --" in text.split("Normal termination")[1]
+            and "Sum of electronic and thermal Free Energies" in text.split("Normal termination")[1])
+
+
+def sampling_finished(folder, output, logfile, termination, atoms, single=False):
+    try:
+        structures = read_xyz(folder / output)
+        text = (folder / logfile).read_text(encoding="utf-8", errors="replace").lower()
+        return (termination.lower() in text
+                and (not single or (len(structures) == 1 and "geometry optimization converged" in text))
+                and all(item["atoms"] == atoms for item in structures))
+    except (OSError, ValueError, IndexError):
+        return False
+
+
+def remove_output(path):
+    """Remove a generated output without following directory symlinks."""
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def restart_stage(folder):
+    """Discard incomplete stage outputs and restart in the same folder."""
+    for path in folder.iterdir():
+        remove_output(path)
+
+
+def classification_signature(folder, files, crest, rthr, ethr):
+    return dict(logs={name: file_digest(folder / "Geometries" / Path(name).with_suffix(".log"))
+                      if (folder / "Geometries" / Path(name).with_suffix(".log")).is_file()
+                      else None for name in files},
+                crest=str(crest), rthr=rthr, ethr=ethr, temperature=TEMPERATURE)
+
+
+def cached_classification(folder, signature):
+    marker = folder / "CREGEN" / "classification.json"
+    try:
+        state = json.loads(marker.read_text(encoding="utf-8"))
+        if state["signature"] != signature:
+            return None
+        for name, digest in state["outputs"].items():
+            if file_digest(folder / name) != digest:
+                return None
+        if set(state["outputs"]) != {"conformation.csv", "conformers_manifest.csv", "conformers_unique.xyz"}:
+            return None
+        read_xyz(folder / "conformers_unique.xyz")
+        with open(folder / "conformation.csv", newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        results = [gaussian_result(folder / "Geometries" / row["Gaussian_log"]) for row in rows]
+        return results or None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def retry_frequency_checks(template, batch, files, folder, max_jobs):
-    """Retry flagged, completed opt/freq calculations once; retain original logs."""
+    """One completed retry per conformer; resume interrupted retries in place."""
     from shutil import copy2
 
     folder = Path(folder).resolve()
-    retry_folder = folder / "Retry"
+    statefile = folder / "frequency_retries.json"
+    state = json.loads(statefile.read_text(encoding="utf-8")) if statefile.exists() else {}
+    originals = folder / "Retry" / "Originals"
     _, frequency, tail = gaussian_routes(template)
     common = [token for token in route_tokens(frequency)
               if re.split(r"[=(]", token.lower(), maxsplit=1)[0]
@@ -233,58 +323,96 @@ def retry_frequency_checks(template, batch, files, folder, max_jobs):
     retries = []
     for name in files:
         original = folder / Path(name).with_suffix(".log")
-        if not original.is_file():
-            continue
-        text = original.read_text(encoding="utf-8", errors="replace")
-        # An interrupted frequency job may not have a usable Hessian.
-        if "Error termination" in text or text.count("Normal termination") != 2:
-            continue
-        if "Frequencies --" not in text.split("Normal termination")[1]:
-            continue
-        if frequency_is_stationary(original):
-            continue
         checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
-        if not (folder / checkpoint).is_file():
-            print(f"WARNING: {original.name} failed the frequency check; "
-                  "checkpoint missing, continuing without a retry.", flush=True)
+        entry = state.get(name)
+        # Recognize second attempts made by the previous incremental patch.
+        legacy = folder / "Retry" / name
+        if entry is None and legacy.is_file() and gaussian_finished(legacy.with_suffix(".log")):
+            originals.mkdir(parents=True, exist_ok=True)
+            try:
+                gaussian_result(legacy.with_suffix(".log"))
+                for path in (original, folder / checkpoint):
+                    if path.is_file() and not (originals / path.name).exists():
+                        copy2(path, originals / path.name)
+                copy2(legacy.with_suffix(".log"), original)
+                if legacy.with_name(checkpoint).is_file():
+                    copy2(legacy.with_name(checkpoint), folder / checkpoint)
+            except (OSError, ValueError):
+                pass  # Preserve the first attempt if the old retry was unusable.
+            (folder / name).write_text(re.sub(r"(?im)^%oldchk=.*\n", "", legacy.read_text()), encoding="utf-8")
+            state[name] = dict(phase="done")
+            save_json(statefile, state)
+            entry = state[name]
+        if entry and entry["phase"] == "done":
+            if gaussian_finished(original) and not frequency_is_stationary(original):
+                print(f"WARNING: {original.name} still fails the frequency check; "
+                      "its second attempt has already finished. Continuing.", flush=True)
             continue
-        retry_folder.mkdir(exist_ok=True)
-        target = retry_folder / name
-        if target.exists():
-            continue  # Never submit the same retry a second time.
-        link0 = (f"%nprocshared={template['nproc']}\n%mem={template['mem']}\n"
-                 f"%chk={checkpoint}\n")
-        target.write_text(f"%oldchk=../{checkpoint}\n" + link0 + optimization
-                          + "\n\n" + tail + "\n\n--Link1--\n" + link0
-                          + frequency + "\n\n" + tail + "\n\n", encoding="utf-8")
-        retries.append(name)
-    if not retries:
-        return
-    print(f"Retrying {len(retries)} Gaussian frequency checks with Opt=ReadFC...", flush=True)
-    failed = run_gaussian_jobs(template, batch, retries, retry_folder, max_jobs)
-    for name in retries:
-        replacement = retry_folder / Path(name).with_suffix(".log")
+        if entry is None:
+            if not gaussian_finished(original) or frequency_is_stationary(original):
+                continue
+            if not (folder / checkpoint).is_file():
+                print(f"WARNING: {original.name} failed the frequency check; "
+                      "checkpoint missing, continuing without a retry.", flush=True)
+                continue
+            originals.mkdir(parents=True, exist_ok=True)
+            for path in (original, folder / checkpoint):
+                target = originals / path.name
+                if not target.exists():
+                    copy2(path, target)
+            link0 = (f"%nprocshared={template['nproc']}\n%mem={template['mem']}\n"
+                     f"%chk={checkpoint}\n")
+            retry_input = link0 + optimization + "\n\n" + tail + "\n\n--Link1--\n"
+            retry_input += link0 + frequency + "\n\n" + tail + "\n\n"
+            # Save the intended input before modifying any job files.
+            state[name] = dict(phase="prepared", original_log=file_digest(original), input=retry_input)
+            save_json(statefile, state)
+            entry = state[name]
+        target = folder / name
+        temporary = target.with_name(target.name + ".tmp")
+        temporary.write_text(entry["input"], encoding="utf-8")
+        temporary.replace(target)
+        # A crash between preparing the retry and removing the old log is harmless.
+        if original.is_file() and file_digest(original) == entry["original_log"]:
+            original.unlink()
+        if not gaussian_finished(original):
+            # Restore the frequency Hessian if an interrupted retry changed the checkpoint.
+            copy2(originals / checkpoint, folder / checkpoint)
+            retries.append(name)
+    if retries:
+        print(f"Submitting {len(retries)} Gaussian frequency retries with Opt=ReadFC...", flush=True)
+        run_gaussian_jobs(template, batch, retries, folder, max_jobs)
+    for name, entry in state.items():
+        if entry["phase"] != "prepared":
+            continue
+        original = folder / Path(name).with_suffix(".log")
+        if not gaussian_finished(original):
+            text = original.read_text(encoding="utf-8", errors="replace") if original.exists() else ""
+            if "Error termination" not in text:
+                print(f"WARNING: Retry for {name} unfinished; it will resume on the next launch.", flush=True)
+                continue
+            print(f"WARNING: Retry for {name} ended with an error; keeping the first attempt.", flush=True)
+            checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
+            copy2(originals / original.name, original)
+            copy2(originals / checkpoint, folder / checkpoint)
+            entry["phase"] = "done"
+            save_json(statefile, state)
+            continue
         try:
-            if Path(name).stem in failed:
-                raise ValueError("retry job failed")
-            gaussian_result(replacement)  # Keep incomplete/imaginary results excluded.
+            gaussian_result(original)
         except (OSError, ValueError) as error:
-            print(f"WARNING: Retry for {name} unusable ({error}); "
-                  "keeping the original result and continuing.", flush=True)
-            continue
-        if not frequency_is_stationary(replacement):
-            print(f"WARNING: {replacement.name} still fails the frequency convergence "
-                  "check after one retry; continuing with the retry result.", flush=True)
-        # Preserve provenance, while classification continues to use the usual names.
-        originals = retry_folder / "Originals"
-        originals.mkdir(exist_ok=True)
-        original = folder / replacement.name
-        copy2(original, originals / original.name)
-        copy2(replacement, original)
-        checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
-        if (retry_folder / checkpoint).is_file():
-            copy2(folder / checkpoint, originals / checkpoint)
-            copy2(retry_folder / checkpoint, folder / checkpoint)
+            print(f"WARNING: Retry for {name} unusable ({error}); keeping the first attempt.", flush=True)
+            checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
+            copy2(originals / original.name, original)
+            copy2(originals / checkpoint, folder / checkpoint)
+        if not frequency_is_stationary(original):
+            print(f"WARNING: {original.name} still fails the frequency convergence "
+                  "check after one retry; continuing.", flush=True)
+        entry["phase"] = "done"
+        save_json(statefile, state)
+    # These are recovery files, needed only while a second attempt is unfinished.
+    if all(entry["phase"] == "done" for entry in state.values()):
+        remove_output(folder / "Retry")
 
 
 def gaussian_result(filename):
@@ -478,39 +606,83 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
         if not batch.is_file() or "#SBATCH" not in batch.read_text(encoding="utf-8"):
             raise ValueError(f"Expected a SLURM batch script that executes bash \"$1\": {batch}")
     folder = Path(workdir).resolve()
-    folder.mkdir()  # Never overwrite a previous search or completed jobs.
+    folder.mkdir(exist_ok=True)
     organize_outputs(folder)
     xtb_folder, crest_folder, gaussian_folder = [folder / name for name in ("xTB", "CREST", "Geometries")]
     for stage in (xtb_folder, crest_folder, gaussian_folder):
-        stage.mkdir()
-    (folder / "Inputs" / "template.com").write_text(Path(gaussian_input).read_text(encoding="utf-8"), encoding="utf-8")
-    (folder / "Inputs" / "search.json").write_text(json.dumps(dict(charge=template["charge"],
-        uhf=template["multiplicity"]-1, nproc=template["nproc"], solvent=solvent), indent=2), encoding="utf-8")
-    print("Optimizing the starting geometry with GFN2-xTB locally...", flush=True)
-    write_xyz(xtb_folder / "start.xyz", [dict(atoms=template["atoms"], geometry=template["geometry"])])
-    xtb_command = [xtb, "start.xyz", "--gfn", "2", "--opt", "tight", "--chrg", str(template["charge"]),
-                   "--uhf", str(template["multiplicity"]-1), "--parallel", str(template["nproc"])]
+        stage.mkdir(exist_ok=True)
+    saved_input = folder / "Inputs" / "template.com"
+    input_text = Path(gaussian_input).read_text(encoding="utf-8")
+    if saved_input.exists() and saved_input.read_text(encoding="utf-8") != input_text:
+        raise ValueError("Existing search uses a different Gaussian input; choose a new workdir.")
+    settings_file = folder / "Inputs" / "search.json"
+    if settings_file.exists() and json.loads(settings_file.read_text()).get("solvent") != solvent:
+        raise ValueError("Existing search uses a different xTB/CREST solvent; choose a new workdir.")
+    for obsolete in (folder / "Inputs" / "Interrupted", folder / "Geometries" / "Interrupted"):
+        remove_output(obsolete)
+    if not saved_input.exists():
+        temporary = saved_input.with_name("template.com.tmp")
+        temporary.write_text(input_text, encoding="utf-8")
+        temporary.replace(saved_input)
+    save_json(settings_file, dict(charge=template["charge"], uhf=template["multiplicity"]-1,
+                                 nproc=template["nproc"], solvent=solvent))
     solvation = ["--alpb", solvent] if solvent else []
-    run_command(xtb_command + solvation, xtb_folder, "xtb.log")
+    if sampling_finished(xtb_folder, "xtbopt.xyz", "xtb.log",
+                         "normal termination of xtb", template["atoms"], single=True):
+        print("Reusing completed xTB optimization.", flush=True)
+    else:
+        restart_stage(xtb_folder)
+        print("Optimizing the starting geometry with GFN2-xTB locally...", flush=True)
+        write_xyz(xtb_folder / "start.xyz", [dict(atoms=template["atoms"], geometry=template["geometry"])])
+        xtb_command = [xtb, "start.xyz", "--gfn", "2", "--opt", "tight", "--chrg", str(template["charge"]),
+                       "--uhf", str(template["multiplicity"]-1), "--parallel", str(template["nproc"])]
+        run_command(xtb_command + solvation, xtb_folder, "xtb.log")
+        if not sampling_finished(xtb_folder, "xtbopt.xyz", "xtb.log",
+                                 "normal termination of xtb", template["atoms"], single=True):
+            raise ValueError("xTB optimization incomplete; inspect xTB/xtb.log.")
     optimized = read_xyz(xtb_folder / "xtbopt.xyz")
-    if len(optimized) != 1 or optimized[0]["atoms"] != template["atoms"]:
-        raise ValueError("xTB did not return the expected optimized molecule.")
-    write_xyz(crest_folder / "start.xyz", optimized)
-    crest_command = [crest, "start.xyz", "--gfn2", "-T", str(template["nproc"]), "--cluster",
-                     "--chrg", str(template["charge"]), "--uhf", str(template["multiplicity"]-1)] + solvation
-    script = crest_folder / "run_crest.sh"
-    script.write_text("#!/bin/bash\nset -e\n" + " ".join(shlex.quote(arg) for arg in crest_command)
-                      + " > crest.out 2>&1\n", encoding="utf-8")
-    print("Submitting CREST to SLURM...", flush=True)
-    run_slurm(batches[0], script, crest_folder, template["nproc"], template["mem"])
+    if sampling_finished(crest_folder, "crest_clustered.xyz", "crest.out",
+                         "CREST terminated normally", template["atoms"]):
+        print("Reusing completed CREST search.", flush=True)
+    else:
+        restart_stage(crest_folder)
+        # A new CREST ensemble may assign entirely different conformer numbers.
+        restart_stage(gaussian_folder)
+        write_xyz(crest_folder / "start.xyz", optimized)
+        crest_command = [crest, "start.xyz", "--gfn2", "-T", str(template["nproc"]), "--cluster",
+                         "--chrg", str(template["charge"]), "--uhf", str(template["multiplicity"]-1)] + solvation
+        script = crest_folder / "run_crest.sh"
+        script.write_text("#!/bin/bash\nset -e\n" + " ".join(shlex.quote(arg) for arg in crest_command)
+                          + " > crest.out 2>&1\n", encoding="utf-8")
+        print("Submitting CREST to SLURM...", flush=True)
+        run_slurm(batches[0], script, crest_folder, template["nproc"], template["mem"])
+        if not sampling_finished(crest_folder, "crest_clustered.xyz", "crest.out",
+                                 "CREST terminated normally", template["atoms"]):
+            raise ValueError("CREST search incomplete; inspect CREST/crest.out.")
     structures = read_xyz(crest_folder / "crest_clustered.xyz")
     files = make_gaussian_inputs(template, structures, gaussian_folder)
-    print(f"Submitting {len(files)} Gaussian opt/freq jobs; maximum {max_jobs} simultaneous jobs...", flush=True)
-    failed = run_gaussian_jobs(template, batches[1], files, gaussian_folder, max_jobs)
-    if failed:
-        print("Failed Gaussian jobs (excluded from the final ensemble): " + ", ".join(failed), flush=True)
+    statefile = gaussian_folder / "frequency_retries.json"
+    retries = json.loads(statefile.read_text()) if statefile.exists() else {}
+    pending = [name for name in files if name not in retries
+               and not gaussian_finished(gaussian_folder / Path(name).with_suffix(".log"))]
+    if pending:
+        print(f"Submitting {len(pending)} unfinished Gaussian opt/freq jobs; "
+              f"maximum {max_jobs} simultaneous jobs...", flush=True)
+        failed = run_gaussian_jobs(template, batches[1], pending, gaussian_folder, max_jobs)
+        if failed:
+            print("Failed Gaussian jobs (excluded from the final ensemble): " + ", ".join(failed), flush=True)
+    else:
+        print("Initial Gaussian opt/freq jobs already finished.", flush=True)
     retry_frequency_checks(template, batches[1], files, gaussian_folder, max_jobs)
-    result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1)
+    signature = classification_signature(folder, files, crest, rthr, ethr)
+    result = cached_classification(folder, signature)
+    if result is None:
+        result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1)
+        outputs = {name: file_digest(folder / name) for name in
+                   ("conformation.csv", "conformers_manifest.csv", "conformers_unique.xyz")}
+        save_json(folder / "CREGEN" / "classification.json", dict(signature=signature, outputs=outputs))
+    else:
+        print("Reusing completed classification and population reports.", flush=True)
     print(f"Search complete. Report: {folder / 'conformation.csv'}", flush=True)
     return result
 

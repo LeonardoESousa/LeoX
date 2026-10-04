@@ -616,19 +616,19 @@ def conformational():
     numjobs = int(default("10", "Maximum simultaneous Gaussian jobs [10]:\n"))
     gaussian = default("g16", "Gaussian executable [g16]:\n").strip()
     solvent = input("xTB/CREST ALPB solvent [Enter for gas phase]:\n").strip()
-    workdir = default("Conformational", "New output directory [Conformational]:\n").strip()
+    workdir = default("Conformational", "Output directory (existing searches resume) [Conformational]:\n").strip()
     if numjobs < 1 or gaussian not in ("g16", "g09"):
         raise ValueError("Use a positive job limit and g16/g09.")
-    if os.path.exists(workdir):
-        raise ValueError("Output directory already exists. Choose a new directory or use --classify-only.")
+    if os.path.exists(workdir) and not os.path.isdir(workdir):
+        raise ValueError("Output path exists and is not a directory.")
     command = [sys.executable, "-m", "lx.conf_search", os.path.abspath(gaussian_input),
                "--batch", os.path.abspath(batch_file),
                "--gaussian", gaussian, "--max-jobs", str(numjobs), "--workdir", os.path.abspath(workdir)]
     if solvent:
         command += ["--solvent", solvent]
-    with open(workdir + ".log", "w", encoding="utf-8") as output:
+    with open(workdir + ".log", "a", encoding="utf-8") as output:
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
-    print(f"Search started (PID {process.pid}); progress: {workdir}.log")
+    print(f"Search started/resumed (PID {process.pid}); progress: {workdir}.log")
 
 
 ###############################################################
@@ -767,8 +767,6 @@ class Watcher:
                         if "Normal termination" in line:
                             term += 1
                             if term == self.counter:
-                                if self.counter == 2:
-                                    delchk(input_file)
                                 self.done.append(input_file)
                                 del self.files[self.files.index(input_file)]
                                 break

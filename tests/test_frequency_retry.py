@@ -30,6 +30,7 @@ class FrequencyRetryTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.folder = Path(self.temp.name)
         self.name = "Geometry-1-.com"
+        (self.folder / self.name).write_text("original input")
         self.log = self.folder / "Geometry-1-.log"
         self.log.write_text(optfreq_log(False))
         (self.folder / "conformer_1.chk").write_bytes(b"original checkpoint")
@@ -55,13 +56,16 @@ class FrequencyRetryTests(unittest.TestCase):
             self.assertEqual((files, max_jobs), ([self.name], 3))
             retry_input = (folder / self.name).read_text()
             first, second = retry_input.split("--Link1--")
-            self.assertIn("%oldchk=../conformer_1.chk", first)
+            self.assertEqual(folder, self.folder)
+            self.assertNotIn("%oldchk", first)
+            self.assertIn("%chk=conformer_1.chk", first)
             self.assertIn("opt=readfc guess=read geom=allcheck", first)
             self.assertNotIn("guess=mix", retry_input)
             self.assertIn("freq=noraman temperature=300", second)
             for job in (first, second):
                 self.assertIn("iop(3/107=100)", job)
                 self.assertIn("C H 0\n6-31G(d)\n****", job)
+            self.assertEqual((folder / "Retry/Originals" / self.log.name).read_text(), original)
             (folder / self.log.name).write_text(optfreq_log(stationary, energy=-40.1))
             (folder / "conformer_1.chk").write_bytes(b"retry checkpoint")
             return []
@@ -72,12 +76,10 @@ class FrequencyRetryTests(unittest.TestCase):
             conf.retry_frequency_checks(self.template, "batch.sh", [self.name], self.folder, 3)
             self.assertEqual(runner.call_count, 1)
         self.assertIn("-40.100000000000", self.log.read_text())
-        self.assertEqual((self.folder / "Retry/Originals" / self.log.name).read_text(), original)
+        self.assertFalse((self.folder / "Retry").exists())
         self.assertEqual((self.folder / "conformer_1.chk").read_bytes(), b"retry checkpoint")
-        self.assertEqual((self.folder / "Retry/Originals/conformer_1.chk").read_bytes(),
-                         b"original checkpoint")
 
-    def test_successful_retry_is_used_and_originals_preserved(self):
+    def test_successful_retry_is_used_and_backups_removed(self):
         self.exercise_retry(True)
 
     def test_still_nonstationary_retry_is_used_without_looping(self):
@@ -94,6 +96,28 @@ class FrequencyRetryTests(unittest.TestCase):
             self.assertEqual(runner.call_count, 1)
         self.assertEqual(self.log.read_text(), original)
         self.assertEqual((self.folder / "conformer_1.chk").read_bytes(), b"original checkpoint")
+
+    def test_interrupted_retry_resumes_same_input_and_original_hessian(self):
+        original = self.log.read_text()
+        calls = []
+        def run(template, batch, files, folder, max_jobs):
+            calls.append((folder / self.name).read_text())
+            self.assertEqual((folder / "conformer_1.chk").read_bytes(), b"original checkpoint")
+            if len(calls) == 1:
+                self.assertEqual((folder / "Retry/Originals" / self.log.name).read_text(), original)
+                (folder / self.log.name).write_text("Optimization completed.\nNormal termination\n")
+                (folder / "conformer_1.chk").write_bytes(b"partial optimization checkpoint")
+                return ["Geometry-1-"]
+            (folder / self.log.name).write_text(optfreq_log(True))
+            return []
+        with patch.object(conf, "run_gaussian_jobs", side_effect=run), \
+             patch.object(conf.lx.parser, "pega_geom",
+                          return_value=(np.array([[0., 0., 0.], [1., 0., 0.]]), ["C", "H"])):
+            for _ in range(3):
+                conf.retry_frequency_checks(self.template, "batch.sh", [self.name], self.folder, 3)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], calls[1])
+        self.assertFalse((self.folder / "Retry").exists())
 
     def test_missing_checkpoint_does_not_submit(self):
         (self.folder / "conformer_1.chk").unlink()

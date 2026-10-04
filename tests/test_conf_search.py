@@ -154,7 +154,7 @@ class WorkflowTests(unittest.TestCase):
         def fake_command(command, folder, logfile):
             commands.append(command)
             folder = Path(folder)
-            (folder / logfile).write_text('completed')
+            (folder / logfile).write_text('GEOMETRY OPTIMIZATION CONVERGED\nnormal termination of xtb\n')
             if command[0] == 'xtb':
                 conf.write_xyz(folder / 'xtbopt.xyz', conf.read_xyz(folder / 'start.xyz'))
             else:
@@ -164,6 +164,7 @@ class WorkflowTests(unittest.TestCase):
         def fake_crest(batch, script, folder, nproc, mem):
             self.assertEqual(nproc, 8)
             self.assertIn('--cluster', Path(script).read_text())
+            (Path(folder) / 'crest.out').write_text('CREST terminated normally.\n')
             start = conf.read_xyz(Path(folder) / 'start.xyz')[0]
             conf.write_xyz(Path(folder) / 'crest_clustered.xyz', [start]*4)
         def fake_submit(command):
