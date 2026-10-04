@@ -200,6 +200,93 @@ def run_gaussian_jobs(template, batch, files, folder, max_jobs):
         os.chdir(previous)
 
 
+def frequency_is_stationary(filename):
+    """Check the last opt/freq convergence check, not just real frequencies."""
+    text = Path(filename).read_text(encoding="utf-8", errors="replace")
+    if "Error termination" in text or text.count("Normal termination") != 2:
+        return False
+    freq = text.split("Normal termination")[1]
+    values = [float(value) for line in freq.splitlines() if "Frequencies --" in line
+              for value in line.split("--", 1)[1].split()]
+    if not values or not np.isfinite(values).all() or any(value < 0 for value in values):
+        return False
+    stationary = False
+    for line in text.splitlines():
+        if "Stationary point found" in line or "Optimization completed" in line:
+            stationary = True
+        elif all(word in line for word in ("Item", "Value", "Threshold", "Converged?")):
+            stationary = False
+    return stationary
+
+
+def retry_frequency_checks(template, batch, files, folder, max_jobs):
+    """Retry flagged, completed opt/freq calculations once; retain original logs."""
+    from shutil import copy2
+
+    folder = Path(folder).resolve()
+    retry_folder = folder / "Retry"
+    _, frequency, tail = gaussian_routes(template)
+    common = [token for token in route_tokens(frequency)
+              if re.split(r"[=(]", token.lower(), maxsplit=1)[0]
+              not in ("freq", "temperature", "geom", "guess")]
+    optimization = "#p " + " ".join(common) + " opt=readfc guess=read geom=allcheck"
+    retries = []
+    for name in files:
+        original = folder / Path(name).with_suffix(".log")
+        if not original.is_file():
+            continue
+        text = original.read_text(encoding="utf-8", errors="replace")
+        # An interrupted frequency job may not have a usable Hessian.
+        if "Error termination" in text or text.count("Normal termination") != 2:
+            continue
+        if "Frequencies --" not in text.split("Normal termination")[1]:
+            continue
+        if frequency_is_stationary(original):
+            continue
+        checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
+        if not (folder / checkpoint).is_file():
+            print(f"WARNING: {original.name} failed the frequency check; "
+                  "checkpoint missing, continuing without a retry.", flush=True)
+            continue
+        retry_folder.mkdir(exist_ok=True)
+        target = retry_folder / name
+        if target.exists():
+            continue  # Never submit the same retry a second time.
+        link0 = (f"%nprocshared={template['nproc']}\n%mem={template['mem']}\n"
+                 f"%chk={checkpoint}\n")
+        target.write_text(f"%oldchk=../{checkpoint}\n" + link0 + optimization
+                          + "\n\n" + tail + "\n\n--Link1--\n" + link0
+                          + frequency + "\n\n" + tail + "\n\n", encoding="utf-8")
+        retries.append(name)
+    if not retries:
+        return
+    print(f"Retrying {len(retries)} Gaussian frequency checks with Opt=ReadFC...", flush=True)
+    failed = run_gaussian_jobs(template, batch, retries, retry_folder, max_jobs)
+    for name in retries:
+        replacement = retry_folder / Path(name).with_suffix(".log")
+        try:
+            if Path(name).stem in failed:
+                raise ValueError("retry job failed")
+            gaussian_result(replacement)  # Keep incomplete/imaginary results excluded.
+        except (OSError, ValueError) as error:
+            print(f"WARNING: Retry for {name} unusable ({error}); "
+                  "keeping the original result and continuing.", flush=True)
+            continue
+        if not frequency_is_stationary(replacement):
+            print(f"WARNING: {replacement.name} still fails the frequency convergence "
+                  "check after one retry; continuing with the retry result.", flush=True)
+        # Preserve provenance, while classification continues to use the usual names.
+        originals = retry_folder / "Originals"
+        originals.mkdir(exist_ok=True)
+        original = folder / replacement.name
+        copy2(original, originals / original.name)
+        copy2(replacement, original)
+        checkpoint = f"conformer_{int(Path(name).stem.split('-')[1])}.chk"
+        if (retry_folder / checkpoint).is_file():
+            copy2(folder / checkpoint, originals / checkpoint)
+            copy2(retry_folder / checkpoint, folder / checkpoint)
+
+
 def gaussian_result(filename):
     """Read completed opt/freq results, in Hartree and Kelvin."""
     text = Path(filename).read_text(encoding="utf-8", errors="replace")
@@ -422,6 +509,7 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
     failed = run_gaussian_jobs(template, batches[1], files, gaussian_folder, max_jobs)
     if failed:
         print("Failed Gaussian jobs (excluded from the final ensemble): " + ", ".join(failed), flush=True)
+    retry_frequency_checks(template, batches[1], files, gaussian_folder, max_jobs)
     result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1)
     print(f"Search complete. Report: {folder / 'conformation.csv'}", flush=True)
     return result
