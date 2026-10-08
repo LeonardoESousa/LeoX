@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import sys
+from pathlib import Path
 import lx.tools
 import lx.parser
-from lx.conf_search import classify_only
+from lx.conf_search import main as conformational_main
 from lx import __version__ as lx_version
 
 def interface():
@@ -153,12 +154,12 @@ def interface():
     elif op == "5":
         question = input("Classify only? y or n?\n")
         if question.lower() == "y":
-            try:
-                classify_only()
-            except:
-                lx.parser.fatal_error(
-                    "Something went wrong. Your folder may not contain Geometry log files. Goodbye!"
-                )
+            # Prefer logs in the current search folder, otherwise its usual child.
+            current_search = Path("Geometries").is_dir() or any(Path(".").glob("Geometry-*.log"))
+            default_folder = "." if current_search or not Path("Conformational").is_dir() else "Conformational"
+            folder = lx.tools.default(default_folder, f"Search directory [{default_folder}]:\n").strip()
+            # Use the CLI entry point so charge/spin settings and errors agree.
+            conformational_main(["--classify-only", folder])
         else:
             lx.tools.conformational()
     elif op == "6":

@@ -64,12 +64,12 @@ class SymmetryTests(unittest.TestCase):
         # Use the same molecule but a clearly different, non-mirror shape.
         other = dict(first, geometry=first['geometry'] * 1.1, source=other['source'])
         results = self.classify([first, other])
-        self.assertEqual([x['multiplicity'] for x in results], [2, 1])
+        self.assertEqual([x['multiplicity'] for x in results], [2, 2])
         with open(self.folder / 'conformation.csv') as handle:
             rows = list(csv.DictReader(handle))
         self.assertEqual(rows[0]['Enantiomers'], 'yes')
         self.assertEqual(rows[0]['Partner_Gaussian_log'], 'inferred mirror partner')
-        self.assertAlmostEqual(float(rows[0]['PopG_300K_percent']), 200/3, places=4)
+        self.assertAlmostEqual(float(rows[0]['PopG_300K_percent']), 50., places=4)
         self.assertAlmostEqual(sum(float(row['PopE_300K_percent']) for row in rows), 100, places=4)
 
     def test_both_dft_partners_sum_actual_gibbs_weights(self):
@@ -86,7 +86,28 @@ class SymmetryTests(unittest.TestCase):
             rows = list(csv.DictReader(handle))
         partner_weight = np.exp(-.0001 * conf.HARTREE_EV / (conf.lx.parser.BOLTZ_EV * 300))
         self.assertAlmostEqual(float(rows[0]['PopG_300K_percent']),
-                               100 * (1 + partner_weight) / (2 + partner_weight), places=4)
+                               100 * (1 + partner_weight) / (3 + partner_weight), places=4)
+
+    def test_unsampled_partner_has_same_multiplicity_as_observed_pair(self):
+        first = self.minimum(self.pair[0], 1)
+        result = self.classify([first])[0]
+        self.assertEqual(result['multiplicity'], 2)
+        self.assertEqual(result['partner_log'], 'inferred mirror partner')
+        self.assertFalse((self.folder / 'CREST/symmetry_groups.json').exists())
+
+    def test_observing_only_the_higher_energy_partner_does_not_bias_populations(self):
+        low = self.minimum(self.pair[0], 1)
+        high = dict(self.minimum(self.pair[0], 2), geometry=low['geometry'] * 1.1,
+                    energy=low['energy'] + .0001, gibbs=low['gibbs'] + .0001,
+                    comment='-39.999900000000')
+        partner = dict(high, geometry=high['geometry'] * np.array([-1., 1., 1.]),
+                       source=str(self.folder / 'Geometries/Geometry-3-.log'))
+        results = self.classify([low, high, partner])
+        self.assertEqual([item['multiplicity'] for item in results], [2, 2])
+        with open(self.folder / 'conformation.csv') as handle:
+            rows = list(csv.DictReader(handle))
+        for column in ('PopE_300K_percent', 'PopG_300K_percent'):
+            self.assertGreater(float(rows[0][column]), float(rows[1][column]))
 
     def test_achiral_dft_collapse_does_not_keep_multiplicity(self):
         conf.sampling_prune(self.pair, self.folder / 'CREST', .125, .05, True)

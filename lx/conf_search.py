@@ -19,7 +19,7 @@ import lx.tools
 
 HARTREE_EV = 27.211386245988
 TEMPERATURE = 300.0
-PRUNING_VERSION = 1
+PRUNING_VERSION = 2
 
 
 def read_xyz(filename):
@@ -647,17 +647,15 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
         raise ValueError("Gaussian outputs have inconsistent element sequences.")
     all_results = results
     groups = prune_symmetry(results, rthr, ethr, merge_mirrors)
-    metadata = folder / "CREST" / "symmetry_groups.json"
-    hints = {entry["gaussian_log"] for entry in json.loads(metadata.read_text())
-             if entry["enantiomers"]} if merge_mirrors and metadata.exists() else set()
     results = []
     membership = {}
     for group in groups:
         item = dict(group["representative"])
         minima = group["minima"][:]
-        if len(minima) == 1 and any(Path(member["source"]).name in hints for member, _ in group["members"]):
-            # The unoptimized partner was omitted before DFT. Do not carry its
-            # multiplicity into an achiral optimized minimum.
+        if len(minima) == 1 and merge_mirrors:
+            # In an achiral equilibrium model every chiral minimum has an
+            # equal-energy mirror minimum, even if sampling missed its partner.
+            # Multiplicity must not depend on whether it happened to be sampled.
             reflected = dict(item, geometry=item["geometry"] * np.array([-1., 1., 1.]))
             if symmetry_rmsd(item, reflected) > rthr:
                 minima.append(item)
