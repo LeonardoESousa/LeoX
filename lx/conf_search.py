@@ -19,6 +19,7 @@ import lx.tools
 
 HARTREE_EV = 27.211386245988
 TEMPERATURE = 300.0
+PRUNING_VERSION = 1
 
 
 def read_xyz(filename):
@@ -149,6 +150,7 @@ def make_gaussian_inputs(template, structures, folder):
     for index, structure in enumerate(structures, 1):
         if structure["atoms"] != template["atoms"]:
             raise ValueError("CREST changed the atom sequence; cannot reuse the Gaussian template.")
+        index = structure.get("crest_index", index)
         name = f"Geometry-{index}-.com"
         if (Path(folder) / name).is_file():
             files.append(name)
@@ -280,11 +282,16 @@ def restart_stage(folder):
         remove_output(path)
 
 
-def classification_signature(folder, files, crest, rthr, ethr):
+def classification_signature(folder, files, crest, rthr, ethr, merge_mirrors=True):
+    files = sorted(set(files) | {path.with_suffix(".com").name
+                                for path in (folder / "Geometries").glob("Geometry-*.log")})
     return dict(logs={name: file_digest(folder / "Geometries" / Path(name).with_suffix(".log"))
                       if (folder / "Geometries" / Path(name).with_suffix(".log")).is_file()
                       else None for name in files},
-                crest=str(crest), rthr=rthr, ethr=ethr, temperature=TEMPERATURE)
+                crest=str(crest), rthr=rthr, ethr=ethr, temperature=TEMPERATURE,
+                pruning=PRUNING_VERSION, merge_mirrors=merge_mirrors,
+                sampling_groups=file_digest(folder / "CREST" / "symmetry_groups.json")
+                if (folder / "CREST" / "symmetry_groups.json").exists() else None)
 
 
 def cached_classification(folder, signature):
@@ -302,6 +309,15 @@ def cached_classification(folder, signature):
         with open(folder / "conformation.csv", newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
         results = [gaussian_result(folder / "Geometries" / row["Gaussian_log"]) for row in rows]
+        for item, row in zip(results, rows):
+            item["multiplicity"] = int(row["Multiplicity"])
+            item["enantiomers"] = row["Enantiomers"] == "yes"
+            item["partner_log"] = row["Partner_Gaussian_log"]
+            item["minima"] = [dict(item)]
+            if item["multiplicity"] == 2:
+                partner = row["Partner_Gaussian_log"]
+                item["minima"].append(gaussian_result(folder / "Geometries" / partner)
+                                      if partner != "inferred mirror partner" else item["minima"][0])
         return results or None
     except (OSError, ValueError, KeyError, TypeError):
         return None
@@ -480,25 +496,113 @@ def aligned_rmsd(geometry, reference):
     return float(np.sqrt(np.mean(np.sum(difference ** 2, axis=1))))
 
 
-def populations(energies):
+def symmetry_rmsd(first, second, inversion=False):
+    """iRMSD with an explicit inversion policy and connectivity verification."""
+    import irmsd
+    if sorted(first["atoms"]) != sorted(second["atoms"]):
+        return float("inf")
+    # The 0.1.2 backend can crash on one/two-atom principal-axis degeneracies.
+    # Their rotation-invariant distance is analytic; neither can be chiral.
+    if len(first["atoms"]) <= 2:
+        if len(first["atoms"]) == 1:
+            return 0.0
+        distances = [np.linalg.norm(item["geometry"][1] - item["geometry"][0])
+                     for item in (first, second)]
+        return float(abs(distances[0] - distances[1]) / 2)
+    molecules = [irmsd.Molecule(item["atoms"], item["geometry"]) for item in (first, second)]
+    value, left, right = irmsd.get_irmsd_molecule(*molecules, iinversion=1 if inversion else 2)
+    if not np.isfinite(value):
+        raise ValueError("iRMSD returned a nonfinite distance.")
+    # Canonical ranks alone need not guarantee a graph-preserving assignment.
+    # Verify the connectivity in the aligned, reordered coordinates as well.
+    if not np.array_equal(lx.tools.adjacency(left.positions, left.symbols),
+                          lx.tools.adjacency(right.positions, right.symbols)):
+        return float("inf")
+    return float(value)
+
+
+def prune_symmetry(structures, rthr, ethr, merge_mirrors=True):
+    """Group duplicates and observed mirror partners; never count sampling repeats."""
+    def energy(item):
+        if "energy" in item:
+            return item["energy"]
+        try:
+            return float(item.get("comment", "").split()[0])
+        except (ValueError, IndexError):
+            return 0.0
+    groups = []
+    for item in sorted(structures, key=energy):
+        for group in groups:
+            representative = group["representative"]
+            proper = symmetry_rmsd(representative, item)
+            mirrored = proper > rthr and merge_mirrors and symmetry_rmsd(representative, item, True) <= rthr
+            if proper > rthr and not mirrored:
+                continue
+            if abs(energy(item) - energy(representative)) * 627.509474 > ethr + 1e-10:
+                print("WARNING: Similar geometries have inconsistent electronic energies; keeping both.", flush=True)
+                continue
+            group["members"].append((item, "enantiomer" if mirrored else "duplicate"))
+            # One minimum per handedness, irrespective of how often it was sampled.
+            if mirrored and len(group["minima"]) == 1:
+                group["minima"].append(item)
+            break
+        else:
+            groups.append(dict(representative=item, members=[(item, "representative")], minima=[item]))
+    return groups
+
+
+def sampling_prune(structures, folder, rthr, ethr, merge_mirrors):
+    for index, item in enumerate(structures, 1):
+        item["crest_index"] = index
+    groups = prune_symmetry(structures, rthr, ethr, merge_mirrors)
+    metadata = []
+    for group in groups:
+        representative = group["representative"]
+        metadata.append(dict(gaussian_log=f"Geometry-{representative['crest_index']}-.log",
+                             enantiomers=len(group["minima"]) == 2,
+                             members=[dict(crest_index=item["crest_index"], relation=relation)
+                                      for item, relation in group["members"]]))
+    save_json(folder / "symmetry_groups.json", metadata)
+    retained = [group["representative"] for group in groups]
+    write_xyz(folder / "crest_pruned.xyz", retained)
+    print(f"Symmetry pruning: {len(structures)} CREST structures -> {len(retained)} Gaussian inputs; "
+          f"{sum(group['enantiomers'] for group in metadata)} mirror pairs.", flush=True)
+    return retained
+
+
+def populations(energies, multiplicities=None):
     delta = (np.asarray(energies) - min(energies)) * HARTREE_EV
     weights = np.exp(-delta / (lx.parser.BOLTZ_EV * TEMPERATURE))
+    if multiplicities is not None:
+        weights *= np.asarray(multiplicities)
     return delta, 100 * weights / weights.sum()
 
 
 def write_report(results, filename):
     results = sorted(results, key=lambda item: item["energy"])
-    delta_e, pop_e = populations([item["energy"] for item in results])
-    delta_g, pop_g = populations([item["gibbs"] for item in results])
+    # Sum the weights of distinct handed minima, retaining separately calculated
+    # Gibbs energies when both partners have Gaussian logs.
+    def grouped_populations(key):
+        reference = min(minimum[key] for item in results for minimum in item.get("minima", [item]))
+        weights = [sum(np.exp(-(minimum[key] - reference) * HARTREE_EV /
+                              (lx.parser.BOLTZ_EV * TEMPERATURE))
+                       for minimum in item.get("minima", [item])) for item in results]
+        delta = (np.array([item[key] for item in results]) - reference) * HARTREE_EV
+        return delta, 100 * np.array(weights) / sum(weights)
+    delta_e, pop_e = grouped_populations("energy")
+    delta_g, pop_g = grouped_populations("gibbs")
     with open(filename, "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Group", "E_Hartree", "DeltaE_eV", "PopE_300K_percent",
-                         "G_Hartree", "DeltaG_eV", "PopG_300K_percent", "Gaussian_log"])
+                         "G_Hartree", "DeltaG_eV", "PopG_300K_percent", "Gaussian_log",
+                         "Multiplicity", "Enantiomers", "Partner_Gaussian_log"])
         for index, item in enumerate(results):
             writer.writerow([index + 1, f"{item['energy']:.12f}", f"{delta_e[index]:.8f}",
                              f"{pop_e[index]:.5f}", f"{item['gibbs']:.12f}",
                              f"{delta_g[index]:.8f}", f"{pop_g[index]:.5f}",
-                             Path(item["source"]).name])
+                             Path(item["source"]).name, item.get("multiplicity", 1),
+                             "yes" if item.get("enantiomers", False) else "no",
+                             item.get("partner_log", "")])
 
 
 def organize_outputs(folder):
@@ -520,7 +624,7 @@ def organize_outputs(folder):
     return cregen
 
 
-def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uhf=0):
+def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uhf=0, merge_mirrors=True):
     """Re-sort completed Gaussian opt/freq logs without repeating calculations."""
     folder = Path(folder).resolve()
     cregen_folder = organize_outputs(folder)
@@ -541,6 +645,29 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
         raise ValueError("No completed, verified minima. See CREGEN/rejected_conformers.csv.")
     if any(item["atoms"] != results[0]["atoms"] for item in results):
         raise ValueError("Gaussian outputs have inconsistent element sequences.")
+    all_results = results
+    groups = prune_symmetry(results, rthr, ethr, merge_mirrors)
+    metadata = folder / "CREST" / "symmetry_groups.json"
+    hints = {entry["gaussian_log"] for entry in json.loads(metadata.read_text())
+             if entry["enantiomers"]} if merge_mirrors and metadata.exists() else set()
+    results = []
+    membership = {}
+    for group in groups:
+        item = dict(group["representative"])
+        minima = group["minima"][:]
+        if len(minima) == 1 and any(Path(member["source"]).name in hints for member, _ in group["members"]):
+            # The unoptimized partner was omitted before DFT. Do not carry its
+            # multiplicity into an achiral optimized minimum.
+            reflected = dict(item, geometry=item["geometry"] * np.array([-1., 1., 1.]))
+            if symmetry_rmsd(item, reflected) > rthr:
+                minima.append(item)
+        item.update(minima=minima, multiplicity=len(minima), enantiomers=len(minima) == 2,
+                    partner_log=Path(minima[1]["source"]).name if len(minima) == 2 and
+                    minima[1]["source"] != item["source"] else
+                    ("inferred mirror partner" if len(minima) == 2 else ""))
+        for member, relation in group["members"]:
+            membership[member["source"]] = (item["source"], relation)
+        results.append(item)
     energy_span = (max(item["energy"] for item in results) - min(item["energy"] for item in results)) * 627.509474
     write_xyz(cregen_folder / "crest_reference.xyz", [results[0]])
     write_xyz(cregen_folder / "crest_reoptimized.xyz", results)
@@ -586,16 +713,18 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
     with open(folder / "conformers_manifest.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["Gaussian_log", "E_Hartree", "G_Hartree", "status"])
-        for item in results:
+        for item in all_results:
+            representative, relation = membership[item["source"]]
             writer.writerow([Path(item["source"]).name, item["energy"], item["gibbs"],
-                             "representative" if item["source"] in retained else "removed by CREGEN (duplicate/rotamer/topology)"])
-    print(f"{len(results)} verified minima -> {len(representatives)} conformers; {len(rejected)} rejected logs.", flush=True)
+                             relation + ": " + Path(representative).name if representative in retained else
+                             "removed by CREGEN (duplicate/rotamer/topology)"])
+    print(f"{len(all_results)} verified minima -> {len(representatives)} conformer groups; {len(rejected)} rejected logs.", flush=True)
     return representatives
 
 
 def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", max_jobs=10,
                  workdir="Conformational", xtb="xtb", crest="crest", solvent=None,
-                 rthr=0.125, ethr=0.05):
+                 rthr=0.125, ethr=0.05, merge_mirrors=True):
     template = lx.parser.read_gaussian_input(gaussian_input)
     template["gaussian"] = gaussian
     if gaussian not in ("g16", "g09") or max_jobs < 1:
@@ -660,6 +789,7 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
                                  "CREST terminated normally", template["atoms"]):
             raise ValueError("CREST search incomplete; inspect CREST/crest.out.")
     structures = read_xyz(crest_folder / "crest_clustered.xyz")
+    structures = sampling_prune(structures, crest_folder, rthr, ethr, merge_mirrors)
     files = make_gaussian_inputs(template, structures, gaussian_folder)
     statefile = gaussian_folder / "frequency_retries.json"
     retries = json.loads(statefile.read_text()) if statefile.exists() else {}
@@ -674,10 +804,10 @@ def run_workflow(gaussian_input, crest_batch, gaussian_batch, gaussian="g16", ma
     else:
         print("Initial Gaussian opt/freq jobs already finished.", flush=True)
     retry_frequency_checks(template, batches[1], files, gaussian_folder, max_jobs)
-    signature = classification_signature(folder, files, crest, rthr, ethr)
+    signature = classification_signature(folder, files, crest, rthr, ethr, merge_mirrors)
     result = cached_classification(folder, signature)
     if result is None:
-        result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1)
+        result = classify_only(folder, crest, rthr, ethr, template["charge"], template["multiplicity"]-1, merge_mirrors)
         outputs = {name: file_digest(folder / name) for name in
                    ("conformation.csv", "conformers_manifest.csv", "conformers_unique.xyz")}
         save_json(folder / "CREGEN" / "classification.json", dict(signature=signature, outputs=outputs))
@@ -701,6 +831,8 @@ def main(argv=None):
     parser.add_argument("--solvent", help="Optional xTB/CREST ALPB solvent; Gaussian SCRF is preserved separately.")
     parser.add_argument("--rthr", type=float, default=0.125)
     parser.add_argument("--ethr", type=float, default=0.05)
+    parser.add_argument("--keep-enantiomers", action="store_true",
+                        help="Keep mirror partners separate (e.g. for chiral environments).")
     parser.add_argument("--classify-only", metavar="FOLDER")
     args = parser.parse_args(argv)
     try:
@@ -712,7 +844,7 @@ def main(argv=None):
                 config = Path(args.classify_only) / "search.json"
             settings = json.loads(config.read_text()) if config.exists() else {}
             classify_only(args.classify_only, args.crest, args.rthr, args.ethr,
-                          settings.get("charge", 0), settings.get("uhf", 0))
+                          settings.get("charge", 0), settings.get("uhf", 0), not args.keep_enantiomers)
         else:
             if not args.gaussian_input:
                 parser.error("Provide a Gaussian input file.")
@@ -722,7 +854,8 @@ def main(argv=None):
             crest_batch = args.crest_batch or shared_batch or args.gaussian_batch
             gaussian_batch = args.gaussian_batch or shared_batch or args.crest_batch
             run_workflow(args.gaussian_input, crest_batch, gaussian_batch, args.gaussian,
-                         args.max_jobs, args.workdir, args.xtb, args.crest, args.solvent, args.rthr, args.ethr)
+                         args.max_jobs, args.workdir, args.xtb, args.crest, args.solvent, args.rthr, args.ethr,
+                         not args.keep_enantiomers)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"Conformational search failed: {error}", file=sys.stderr, flush=True)
         return 1

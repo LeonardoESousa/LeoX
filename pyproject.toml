@@ -7,7 +7,7 @@ name = "LeoX"
 dynamic = ["version"]
 description = "Tools for simulations"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { file =  "LICENSE"}
 authors = [{ name = "Leonardo Evaristo de Sousa", email = "ledso@dtu.dk" }]
 urls = { Homepage = "https://github.com/LeonardoESousa/LeoX" }
@@ -19,6 +19,7 @@ dependencies = [
   "scipy",
   "joblib",
   "requests",
+  "irmsd>=0.1.2,<0.2",
 ]
 
 [project.scripts]

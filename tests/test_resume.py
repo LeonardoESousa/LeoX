@@ -56,7 +56,8 @@ class ResumeTests(unittest.TestCase):
         folder = Path(folder)
         (folder / "crest.out").write_text("CREST terminated normally.\n")
         structure = conf.read_xyz(folder / "start.xyz")[0]
-        conf.write_xyz(folder / "crest_clustered.xyz", [structure, structure])
+        second = dict(structure, geometry=structure['geometry'] * 1.8)
+        conf.write_xyz(folder / "crest_clustered.xyz", [structure, second])
 
     def gaussian(self, template, batch, files, folder, max_jobs):
         self.calls.append(("gaussian", tuple(files)))

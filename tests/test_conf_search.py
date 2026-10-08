@@ -160,13 +160,16 @@ class WorkflowTests(unittest.TestCase):
             else:
                 ensemble = conf.read_xyz(folder / 'reoptimized.xyz')
                 # Collapse two opt jobs to the same minimum, retaining the lower-energy copy.
-                conf.write_xyz(folder / 'reoptimized.xyz.sorted', [ensemble[1], ensemble[2]])
+                conf.write_xyz(folder / 'reoptimized.xyz.sorted',
+                               [item for item in ensemble if float(item['comment']) == -40.])
         def fake_crest(batch, script, folder, nproc, mem):
             self.assertEqual(nproc, 8)
             self.assertIn('--cluster', Path(script).read_text())
             (Path(folder) / 'crest.out').write_text('CREST terminated normally.\n')
             start = conf.read_xyz(Path(folder) / 'start.xyz')[0]
-            conf.write_xyz(Path(folder) / 'crest_clustered.xyz', [start]*4)
+            conf.write_xyz(Path(folder) / 'crest_clustered.xyz',
+                           [dict(start, geometry=start['geometry'] * scale)
+                            for scale in (1., 1.4, 1.8, 2.2)])
         def fake_submit(command):
             wrapper = Path(command[1]).read_text()
             self.assertIn('sbatch --wait', wrapper)
@@ -175,7 +178,7 @@ class WorkflowTests(unittest.TestCase):
             number = int(Path(command[2]).name.split('_')[1]) + 1
             geometry = self.geometry.copy()
             if number == 3:
-                geometry[1, 0] = 1.2
+                geometry[1, 0] = 1.5
             Path(f'Geometry-{number}-.log').write_text(gaussian_log(geometry, -40.0 + (0.001 if number == 1 else 0),
                                                                  correction=0.01+(0.002 if number == 3 else 0),
                                                                  failed=number==4))
