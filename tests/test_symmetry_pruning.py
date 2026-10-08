@@ -40,14 +40,15 @@ class SymmetryTests(unittest.TestCase):
         files = conf.make_gaussian_inputs(template, retained, self.folder / 'Geometries')
         self.assertEqual(files, ['Geometry-2-.com'])
 
-    def classify(self, results):
+    def classify(self, results, reverse_cregen=False):
         for item in results:
             Path(item['source']).write_text('mock completed log')
         def result(filename):
             return next(item for item in results if Path(item['source']) == filename)
         def cregen(command, folder, logfile):
             (folder / logfile).write_text('CREST terminated normally')
-            conf.write_xyz(folder / 'reoptimized.xyz.sorted', conf.read_xyz(folder / 'reoptimized.xyz'))
+            structures = conf.read_xyz(folder / 'reoptimized.xyz')
+            conf.write_xyz(folder / 'reoptimized.xyz.sorted', structures[::-1] if reverse_cregen else structures)
         with patch.object(conf, 'gaussian_result', side_effect=result), \
              patch.object(conf, 'run_command', side_effect=cregen):
             return conf.classify_only(self.folder)
@@ -119,6 +120,24 @@ class SymmetryTests(unittest.TestCase):
     def test_energy_inconsistency_does_not_remove_structure(self):
         self.pair[1]['comment'] = str(float(self.pair[0]['comment']) + .001)
         self.assertEqual(len(conf.prune_symmetry(self.pair, .125, .05)), 2)
+
+    def test_xyz_blocks_match_csv_groups_even_with_energy_ties_and_reversed_cregen(self):
+        first = self.minimum(self.pair[0], 9)
+        second = dict(self.minimum(self.pair[0], 2), geometry=first['geometry'] * 1.1)
+        third = dict(self.minimum(self.pair[0], 4), geometry=first['geometry'] * 1.2,
+                     energy=-40.001, comment='-40.001000000000')
+        results = self.classify([first, second, third], reverse_cregen=True)
+        with open(self.folder / 'conformation.csv') as handle:
+            rows = list(csv.DictReader(handle))
+        structures = conf.read_xyz(self.folder / 'conformers_unique.xyz')
+        self.assertEqual([row['Gaussian_log'] for row in rows],
+                         ['Geometry-4-.log', 'Geometry-2-.log', 'Geometry-9-.log'])
+        self.assertEqual(len(structures), len(rows))
+        for group, (structure, row, result) in enumerate(zip(structures, rows, results), 1):
+            self.assertIn(f'Group={group} ', structure['comment'])
+            self.assertIn('Gaussian_log=' + row['Gaussian_log'], structure['comment'])
+            self.assertEqual(float(structure['comment'].split()[0]), float(row['E_Hartree']))
+            np.testing.assert_allclose(structure['geometry'], result['geometry'], atol=1e-9)
 
 
 if __name__ == '__main__':

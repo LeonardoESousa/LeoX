@@ -19,7 +19,7 @@ import lx.tools
 
 HARTREE_EV = 27.211386245988
 TEMPERATURE = 300.0
-PRUNING_VERSION = 2
+PRUNING_VERSION = 3
 
 
 def read_xyz(filename):
@@ -578,8 +578,13 @@ def populations(energies, multiplicities=None):
     return delta, 100 * weights / weights.sum()
 
 
+def conformer_sort_key(item):
+    """One ordering for CSV groups and XYZ blocks, including energy ties."""
+    return item["energy"], Path(item["source"]).name
+
+
 def write_report(results, filename):
-    results = sorted(results, key=lambda item: item["energy"])
+    results = sorted(results, key=conformer_sort_key)
     # Sum the weights of distinct handed minima, retaining separately calculated
     # Gibbs energies when both partners have Gaussian logs.
     def grouped_populations(key):
@@ -705,6 +710,10 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
                     f"(best RMSD {rmsd:.6f} Angstrom). Compare atom ordering/units in "
                     f"crest_reoptimized.xyz and crest_reoptimized.xyz.sorted.")
             representatives.append(match)
+        representatives.sort(key=conformer_sort_key)
+        for group, item in enumerate(representatives, 1):
+            item["comment"] = (f"{item['energy']:.12f} Group={group} "
+                               f"Gaussian_log={Path(item['source']).name}")
         write_xyz(folder / "conformers_unique.xyz", representatives)
     write_report(representatives, folder / "conformation.csv")
     retained = {item["source"] for item in representatives}
