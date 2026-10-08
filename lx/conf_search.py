@@ -19,7 +19,7 @@ import lx.tools
 
 HARTREE_EV = 27.211386245988
 TEMPERATURE = 300.0
-PRUNING_VERSION = 3
+PRUNING_VERSION = 4
 
 
 def read_xyz(filename):
@@ -308,14 +308,17 @@ def cached_classification(folder, signature):
         read_xyz(folder / "conformers_unique.xyz")
         with open(folder / "conformation.csv", newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
+        with open(folder / "conformers_manifest.csv", newline="", encoding="utf-8") as handle:
+            metadata = {row["Gaussian_log"]: row for row in csv.DictReader(handle)}
         results = [gaussian_result(folder / "Geometries" / row["Gaussian_log"]) for row in rows]
         for item, row in zip(results, rows):
             item["multiplicity"] = int(row["Multiplicity"])
-            item["enantiomers"] = row["Enantiomers"] == "yes"
-            item["partner_log"] = row["Partner_Gaussian_log"]
+            details = metadata[row["Gaussian_log"]]
+            item["enantiomers"] = details["Enantiomers"] == "yes"
+            item["partner_log"] = details["Partner_Gaussian_log"]
             item["minima"] = [dict(item)]
             if item["multiplicity"] == 2:
-                partner = row["Partner_Gaussian_log"]
+                partner = item["partner_log"]
                 item["minima"].append(gaussian_result(folder / "Geometries" / partner)
                                       if partner != "inferred mirror partner" else item["minima"][0])
         return results or None
@@ -600,14 +603,12 @@ def write_report(results, filename):
         writer = csv.writer(handle)
         writer.writerow(["Group", "E_Hartree", "DeltaE_eV", "PopE_300K_percent",
                          "G_Hartree", "DeltaG_eV", "PopG_300K_percent", "Gaussian_log",
-                         "Multiplicity", "Enantiomers", "Partner_Gaussian_log"])
+                         "Multiplicity"])
         for index, item in enumerate(results):
             writer.writerow([index + 1, f"{item['energy']:.12f}", f"{delta_e[index]:.8f}",
                              f"{pop_e[index]:.5f}", f"{item['gibbs']:.12f}",
                              f"{delta_g[index]:.8f}", f"{pop_g[index]:.5f}",
-                             Path(item["source"]).name, item.get("multiplicity", 1),
-                             "yes" if item.get("enantiomers", False) else "no",
-                             item.get("partner_log", "")])
+                             Path(item["source"]).name, item.get("multiplicity", 1)])
 
 
 def organize_outputs(folder):
@@ -717,14 +718,21 @@ def classify_only(folder=".", crest="crest", rthr=0.125, ethr=0.05, charge=0, uh
         write_xyz(folder / "conformers_unique.xyz", representatives)
     write_report(representatives, folder / "conformation.csv")
     retained = {item["source"] for item in representatives}
+    group_details = {item["source"]: (index, item)
+                     for index, item in enumerate(representatives, 1)}
     with open(folder / "conformers_manifest.csv", "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["Gaussian_log", "E_Hartree", "G_Hartree", "status"])
+        writer.writerow(["Gaussian_log", "E_Hartree", "G_Hartree", "status", "Group",
+                         "Multiplicity", "Enantiomers", "Partner_Gaussian_log"])
         for item in all_results:
             representative, relation = membership[item["source"]]
+            group, details = group_details.get(representative, ("", {}))
             writer.writerow([Path(item["source"]).name, item["energy"], item["gibbs"],
                              relation + ": " + Path(representative).name if representative in retained else
-                             "removed by CREGEN (duplicate/rotamer/topology)"])
+                             "removed by CREGEN (duplicate/rotamer/topology)", group,
+                             details.get("multiplicity", ""),
+                             ("yes" if details.get("enantiomers") else "no") if details else "",
+                             details.get("partner_log", "")])
     print(f"{len(all_results)} verified minima -> {len(representatives)} conformer groups; {len(rejected)} rejected logs.", flush=True)
     return representatives
 

@@ -68,8 +68,15 @@ class SymmetryTests(unittest.TestCase):
         self.assertEqual([x['multiplicity'] for x in results], [2, 2])
         with open(self.folder / 'conformation.csv') as handle:
             rows = list(csv.DictReader(handle))
-        self.assertEqual(rows[0]['Enantiomers'], 'yes')
-        self.assertEqual(rows[0]['Partner_Gaussian_log'], 'inferred mirror partner')
+        self.assertIn('Multiplicity', rows[0])
+        self.assertNotIn('Enantiomers', rows[0])
+        self.assertNotIn('Partner_Gaussian_log', rows[0])
+        with open(self.folder / 'conformers_manifest.csv') as handle:
+            manifest = {row['Gaussian_log']: row for row in csv.DictReader(handle)}
+        details = manifest[rows[0]['Gaussian_log']]
+        self.assertEqual(details['Group'], rows[0]['Group'])
+        self.assertEqual(details['Enantiomers'], 'yes')
+        self.assertEqual(details['Partner_Gaussian_log'], 'inferred mirror partner')
         self.assertAlmostEqual(float(rows[0]['PopG_300K_percent']), 50., places=4)
         self.assertAlmostEqual(sum(float(row['PopE_300K_percent']) for row in rows), 100, places=4)
 
@@ -138,6 +145,25 @@ class SymmetryTests(unittest.TestCase):
             self.assertIn('Gaussian_log=' + row['Gaussian_log'], structure['comment'])
             self.assertEqual(float(structure['comment'].split()[0]), float(row['E_Hartree']))
             np.testing.assert_allclose(structure['geometry'], result['geometry'], atol=1e-9)
+
+    def test_cached_classification_restores_partner_from_manifest(self):
+        first, second = [self.minimum(s, i+1) for i,s in enumerate(self.pair)]
+        second['gibbs'] += .0001
+        self.classify([first, second])
+        signature = {'pruning': conf.PRUNING_VERSION}
+        outputs = {name: conf.file_digest(self.folder / name) for name in
+                   ('conformation.csv', 'conformers_manifest.csv', 'conformers_unique.xyz')}
+        conf.save_json(self.folder / 'CREGEN/classification.json',
+                       dict(signature=signature, outputs=outputs))
+        def result(filename):
+            return dict(next(item for item in (first, second) if Path(item['source']) == filename))
+        with patch.object(conf, 'gaussian_result', side_effect=result):
+            cached = conf.cached_classification(self.folder, signature)
+        self.assertIsNotNone(cached)
+        self.assertEqual(cached[0]['multiplicity'], 2)
+        self.assertTrue(cached[0]['enantiomers'])
+        self.assertEqual(cached[0]['partner_log'], 'Geometry-2-.log')
+        self.assertAlmostEqual(cached[0]['minima'][1]['gibbs'], second['gibbs'])
 
 
 if __name__ == '__main__':
